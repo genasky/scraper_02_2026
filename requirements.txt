@@ -1,4 +1,4 @@
-requests
-aiohttp
-aiohttp_socks
-bs4
+requests==2.32.5
+aiohttp==3.13.3
+aiohttp_socks==0.11.0
+bs4==4.14.3

@@ -19,6 +19,7 @@ class HttpClient(object):
         self.headers = {
             'User-Agent': USER_AGENT,
             'Accept-Language': 'en-GB,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
         }
 
         self.timeout = timeout
@@ -34,7 +35,7 @@ class HttpClient(object):
             req = await self.session.get(page, headers=self.headers, timeout=self.timeout)
             text = await req.text()
             self.headers['Referer'] = page
-        except aiohttp.client_exception.ClientError as e:
+        except aiohttp.ClientError as e:
             return self.response(http=0, html=e.__doc__)
         return self.response(http=req.status, html=text)
     
@@ -45,7 +46,7 @@ class HttpClient(object):
             req = await self.session.post(page, data=data, headers=self.headers, timeout=self.timeout)
             text = await req.text()
             self.headers['Referer'] = page
-        except aiohttp.client_exception.ClientError as e:
+        except aiohttp.ClientError as e:
             return self.response(http=0, html=e.__doc__)
         return self.response(http=req.status, html=text)
     

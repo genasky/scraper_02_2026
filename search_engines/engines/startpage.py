@@ -15,11 +15,11 @@ class Startpage(SearchEngine):
     def _selectors(self, element):
         '''Returns the appropriate CSS selector.'''
         selectors = {
-            'url': 'a.w-gl__result-url', 
-            'title': 'a.w-gl__result-title h3', 
-            'text': 'p.w-gl__description', 
-            'links': 'section.w-gl div.w-gl__result', 
-            'next': {'form':'form.pagination__form', 'text':'Next'},
+            'url': 'a[href]', 
+            'title': 'a.result-title, div.headline a', 
+            'text': 'p.description', 
+            'links': 'div.result', 
+            'next': 'div.pagination form',
             'search_form': 'form#search input[name]',
             'blocked_form': 'form#blocked_feedback_form'
         }
@@ -42,18 +42,28 @@ class Startpage(SearchEngine):
     def _next_page(self, tags):
         '''Returns the next page URL and post data (if any)'''
         selector = self._selectors('next')
-        forms = [
-            form 
-            for form in tags.select(selector['form']) 
-            if form.get_text(strip=True) == selector['text']
-        ]
+        forms = tags.select(selector)
         url, data = None, None
-        if forms:
-            url = self._base_url + forms[0]['action']
-            data = {
-                i['name']:i.get('value', '') 
-                for i in forms[0].select('input')
-            }
+        # Find the current page number, then pick the next page form
+        current_page = None
+        for form in forms:
+            aria = form.get('aria-label', '')
+            if 'current page' in aria:
+                page_input = form.select_one('input[name=page]')
+                if page_input:
+                    current_page = int(page_input.get('value', 0))
+                break
+        if current_page is not None:
+            next_page_num = current_page + 1
+            for form in forms:
+                page_input = form.select_one('input[name=page]')
+                if page_input and int(page_input.get('value', 0)) == next_page_num:
+                    url = self._base_url + form.get('action', '/sp/search')
+                    data = {
+                        i['name']:i.get('value', '') 
+                        for i in form.select('input')
+                    }
+                    break
         return {'url':url, 'data':data}
     
     def _is_ok(self, response):

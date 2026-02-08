@@ -12,7 +12,7 @@ class Yahoo(SearchEngine):
     def _selectors(self, element):
         '''Returns the appropriate CSS selector.'''
         selectors = {
-            'url': 'div.compTitle h3.title a', 
+            'url': 'div.compTitle a', 
             'title': 'div.compTitle h3.title', 
             'text': 'div.compText', 
             'links': 'div#web li div.dd.algo.algo-sr', 
@@ -35,14 +35,13 @@ class Yahoo(SearchEngine):
     def _get_url(self, link, item='href'):
         selector = self._selectors('url')
         url = self._get_tag_item(link.select_one(selector), 'href')
-        url = url.split(u'/RU=')[-1].split(u'/R')[0]
+        if u'/RU=' in url:
+            url = url.split(u'/RU=')[-1].split(u'/R')[0]
         return unquote_url(url)
 
     def _get_title(self, tag, item='text'):
         '''Returns the title of search results items.'''
         title = tag.select_one(self._selectors('title'))
-        for span in title.select('span'):
-            span.decompose()
         return self._get_tag_item(title, item)
 
     
