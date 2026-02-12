@@ -23,6 +23,62 @@ class Bing(SearchEngine):
     async def _first_page(self):
         '''Returns the initial page and query.'''
         url = u'{}/search?q={}'.format(self._base_url, self._query)
+        
+        # Add language and country parameters
+        params = []
+        
+        # Set language/country combination
+        if self._language or self._country:
+            if self._country == 'ru':
+                params.append('setlang=ru-RU')
+            elif self._country == 'by':
+                params.append('setlang=ru-RU')
+            elif self._country == 'kz':
+                params.append('setlang=ru-RU')
+            elif self._country == 'ua':
+                params.append('setlang=uk-UA')
+            elif self._language == 'ru':
+                params.append('setlang=ru-RU')
+            elif self._language == 'de':
+                params.append('setlang=de-DE')
+            elif self._language == 'fr':
+                params.append('setlang=fr-FR')
+            elif self._language == 'es':
+                params.append('setlang=es-ES')
+            elif self._language == 'zh':
+                params.append('setlang=zh-CN')
+            elif self._language == 'ja':
+                params.append('setlang=ja-JP')
+            elif self._language == 'it':
+                params.append('setlang=it-IT')
+            
+            # Add country-specific market parameter
+            if self._country:
+                country_map = {
+                    'ru': 'ru-RU',
+                    'by': 'by-BY', 
+                    'kz': 'kz-KZ',
+                    'ua': 'uk-UA',
+                    'us': 'en-US',
+                    'gb': 'en-GB',
+                    'de': 'de-DE',
+                    'fr': 'fr-FR',
+                    'es': 'es-ES',
+                    'it': 'it-IT'
+                }
+                if self._country in country_map:
+                    params.append(f'mkt={country_map[self._country]}')
+        
+        # Add safe search parameter
+        if self._safe_search and self._safe_search != 'moderate':
+            if self._safe_search == 'strict':
+                params.append('strict=1')
+            elif self._safe_search == 'off':
+                params.append('safeSearch=off')
+        
+        if params:
+            url += '&' + '&'.join(params)
+            
         return {'url':url, 'data':None}
     
     def _next_page(self, tags):

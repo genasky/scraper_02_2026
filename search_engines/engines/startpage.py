@@ -36,6 +36,44 @@ class Startpage(SearchEngine):
             for i in tags.select(selector)
         }
         data['query'] = self._query
+        
+        # Add language and country settings
+        if self._language or self._country:
+            # Set language preference
+            if self._country == 'ru' or self._country == 'by' or self._country == 'kz':
+                data['with_date'] = 'y'
+                data['lui'] = 'russian'
+            elif self._language == 'ru':
+                data['with_date'] = 'y'
+                data['lui'] = 'russian'
+            elif self._language == 'de':
+                data['lui'] = 'deutsch'
+            elif self._language == 'fr':
+                data['lui'] = 'french'
+            elif self._language == 'es':
+                data['lui'] = 'spanish'
+            elif self._language == 'it':
+                data['lui'] = 'italian'
+            
+            # Set country/region
+            if self._country:
+                country_map = {
+                    'ru': 'russia',
+                    'by': 'belarus', 
+                    'kz': 'kazakhstan',
+                    'ua': 'ukraine',
+                    'us': 'united-states',
+                    'gb': 'united-kingdom',
+                    'de': 'germany',
+                    'fr': 'france',
+                    'es': 'spain',
+                    'it': 'italy'
+                }
+                if self._country in country_map:
+                    data['cat'] = 'web'
+                    data['pl'] = 'ext-ff'
+                    data['extVersion'] = '1.3.0'
+        
         url = self._base_url + '/sp/search'
         return {'url':url, 'data':data}
     

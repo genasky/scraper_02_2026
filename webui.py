@@ -19,7 +19,7 @@ CORS(app)
 
 # Get working engines
 working_engines = {k: v for k, v in search_engines_dict.items() 
-                   if k in ['google', 'bing', 'yahoo', 'aol', 'duckduckgo', 'startpage', 'dogpile', 'ask', 'mojeek', 'qwant', 'torch']}
+                   if k in ['google', 'bing', 'yahoo', 'aol', 'duckduckgo', 'startpage', 'ask', 'torch']}
 
 @app.route('/')
 def index():

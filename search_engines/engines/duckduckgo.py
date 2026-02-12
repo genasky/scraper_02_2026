@@ -21,8 +21,49 @@ class Duckduckgo(SearchEngine):
     
     async def _first_page(self):
         '''Returns the initial page and query.'''
-        data = {'q':self._query, 'b':'', 'kl':'us-en'} 
-        return {'url':self._base_url, 'data':data}
+        data = {'q': self._query, 'b': ''}
+        
+        # Set language/region (kl parameter)
+        if self._country:
+            kl_map = {
+                'ru': 'ru-ru',
+                'by': 'ru-by', 
+                'kz': 'ru-kz',
+                'ua': 'uk-ua',
+                'us': 'us-en',
+                'gb': 'uk-en',
+                'de': 'de-de',
+                'fr': 'fr-fr',
+                'es': 'es-es',
+                'it': 'it-it',
+                'cn': 'cn-zh',
+                'jp': 'jp-jp'
+            }
+            if self._country in kl_map:
+                data['kl'] = kl_map[self._country]
+        elif self._language:
+            lang_kl_map = {
+                'ru': 'ru-ru',
+                'de': 'de-de',
+                'fr': 'fr-fr',
+                'es': 'es-es',
+                'it': 'it-it',
+                'zh': 'cn-zh',
+                'ja': 'jp-jp'
+            }
+            if self._language in lang_kl_map:
+                data['kl'] = lang_kl_map[self._language]
+        else:
+            data['kl'] = 'us-en'  # default
+            
+        # Add additional parameters for better results
+        if self._safe_search and self._safe_search != 'moderate':
+            if self._safe_search == 'strict':
+                data['kp'] = '1'
+            elif self._safe_search == 'off':
+                data['kp'] = '-2'
+        
+        return {'url': self._base_url, 'data': data}
     
     def _next_page(self, tags):
         '''Returns the next page URL and post data (if any)'''

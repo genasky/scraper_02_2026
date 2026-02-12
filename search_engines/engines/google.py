@@ -11,22 +11,24 @@ class Google(SearchEngine):
         self._delay = (2, 6)
         self._current_page = 1
         
-        self.set_headers({'User-Agent':FAKE_USER_AGENT})
+        # Use a more modern user agent to avoid JavaScript challenges
+        modern_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        self.set_headers({'User-Agent': modern_user_agent})
     
     def _selectors(self, element):
         '''Returns the appropriate CSS selector.'''
         selectors = {
             'url': 'a[href]', 
-            'title': 'a', 
-            'text': 'span > span', 
-            'links': 'div#search div[class=g]', 
-            'next': 'a[href][aria-label="Page {page}"]'
+            'title': 'h3', 
+            'text': 'div.VwiC3b', 
+            'links': 'div.MjjYud, div.g, div.tF2Cxc', 
+            'next': 'a[href][aria-label="Page {page}"], a#pnnext'
         }
         return selectors[element]
     
     async def _first_page(self):
         '''Returns the initial page and query.'''
-        url = u'{}/search?q={}'.format(self._base_url, self._query)
+        url = u'{}/search?q={}&hl=en&num=10'.format(self._base_url, self._query)
         return {'url':url, 'data':None}
     
     def _next_page(self, tags):

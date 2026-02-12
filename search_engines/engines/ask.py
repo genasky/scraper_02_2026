@@ -27,6 +27,53 @@ class Ask(SearchEngine):
         '''Returns the initial page and query.'''
         url_str = u'{}/web?q={}'
         url = url_str.format(self._base_url, self._query)
+        
+        # Add language and country parameters
+        params = []
+        
+        # Set language/country combination
+        if self._language or self._country:
+            if self._country == 'ru' or self._country == 'by' or self._country == 'kz':
+                params.append('qsrc=0&qo=pagination')
+            elif self._language == 'ru':
+                params.append('qsrc=0&qo=pagination')
+            
+            # Add locale parameter for Ask
+            if self._country:
+                locale_map = {
+                    'ru': 'ru-RU',
+                    'by': 'ru-RU', 
+                    'kz': 'ru-RU',
+                    'ua': 'uk-UA',
+                    'us': 'en-US',
+                    'gb': 'en-GB',
+                    'de': 'de-DE',
+                    'fr': 'fr-FR',
+                    'es': 'es-ES',
+                    'it': 'it-IT'
+                }
+                if self._country in locale_map:
+                    params.append(f'locale={locale_map[self._country]}')
+            elif self._language:
+                lang_locale_map = {
+                    'ru': 'ru-RU',
+                    'de': 'de-DE',
+                    'fr': 'fr-FR',
+                    'es': 'es-ES',
+                    'it': 'it-IT',
+                    'zh': 'zh-CN',
+                    'ja': 'ja-JP'
+                }
+                if self._language in lang_locale_map:
+                    params.append(f'locale={lang_locale_map[self._language]}')
+        
+        # Add quality parameters to avoid content farms
+        params.append('qo=serpIndex')
+        params.append('o=0')
+        
+        if params:
+            url += '&' + '&'.join(params)
+            
         return {'url':url, 'data':None}
     
     def _next_page(self, tags):

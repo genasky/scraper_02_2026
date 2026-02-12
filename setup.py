@@ -8,7 +8,7 @@ setup(
     name='search_engines',
     version='0.5',
     description='Search Engines Scraper',
-    author='Tasos M. Adamopoulos',
+    author='genasky',
     license='MIT',
     packages=find_packages(),
     install_requires=requirements

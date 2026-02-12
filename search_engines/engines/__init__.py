@@ -1,26 +1,24 @@
 from .aol import Aol
 from .ask import Ask
 from .bing import Bing
-from .dogpile import Dogpile
 from .duckduckgo import Duckduckgo
-from .google import Google
-from .mojeek import Mojeek
+from .google_playwright import GooglePlaywright
 from .startpage import Startpage
 from .torch import Torch
 from .yahoo import Yahoo
-from .qwant import Qwant
+
+# Create Google alias for GooglePlaywright
+Google = GooglePlaywright
 
 
 search_engines_dict = { 
-    'google': Google, 
+    'google': GooglePlaywright, 
+    'google_playwright': GooglePlaywright,
     'bing': Bing, 
     'yahoo': Yahoo, 
     'aol': Aol, 
     'duckduckgo': Duckduckgo, 
     'startpage': Startpage, 
-    'dogpile': Dogpile, 
     'ask': Ask, 
-    'mojeek': Mojeek, 
-    'qwant': Qwant, 
     'torch': Torch 
 }
