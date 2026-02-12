@@ -1,8 +1,11 @@
 from .aol import Aol
 from .ask import Ask
 from .bing import Bing
+from .brave import Brave
 from .duckduckgo import Duckduckgo
+from .ecosia import Ecosia
 from .google_playwright import GooglePlaywright
+from .qwant import Qwant
 from .startpage import Startpage
 from .torch import Torch
 from .yahoo import Yahoo
@@ -20,5 +23,8 @@ search_engines_dict = {
     'duckduckgo': Duckduckgo, 
     'startpage': Startpage, 
     'ask': Ask, 
-    'torch': Torch 
+    'torch': Torch,
+    'qwant': Qwant,
+    'brave': Brave,
+    'ecosia': Ecosia
 }
