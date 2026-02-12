@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxy Settings Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Тест настроек прокси</h1>
+    
+    <div class="test-section">
+        <h2>Проверка JavaScript функций</h2>
+        <div id="test-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Тестовая форма прокси</h2>
+        <form id="proxyForm">
+            <label for="proxy_type">Тип прокси:</label>
+            <select id="proxy_type" name="proxy_type" onchange="updateProxyPlaceholder()">
+                <option value="">Без прокси</option>
+                <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="socks4">SOCKS4</option>
+                <option value="socks5">SOCKS5</option>
+            </select>
+            <br><br>
+            
+            <label for="proxy_host">Хост:</label>
+            <input type="text" id="proxy_host" name="proxy_host" placeholder="127.0.0.1">
+            
+            <label for="proxy_port">Порт:</label>
+            <input type="number" id="proxy_port" name="proxy_port" placeholder="8080">
+            <br><br>
+            
+            <label for="proxy_username">Имя пользователя:</label>
+            <input type="text" id="proxy_username" name="proxy_username">
+            
+            <label for="proxy_password">Пароль:</label>
+            <input type="password" id="proxy_password" name="proxy_password">
+            <br><br>
+            
+            <label>
+                <input type="checkbox" id="proxy_verify_ssl" name="proxy_verify_ssl" checked>
+                Проверять SSL сертификаты
+            </label>
+            <br><br>
+            
+            <button type="button" onclick="testProxyUrl()">Построить URL прокси</button>
+        </form>
+        
+        <div id="proxy-result" style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px;"></div>
+    </div>
+
+    <script>
+        // Copy the functions from the main script
+        function updateProxyPlaceholder() {
+            const proxyType = document.getElementById('proxy_type').value;
+            const proxyHost = document.getElementById('proxy_host');
+            const proxyPort = document.getElementById('proxy_port');
+            
+            switch (proxyType) {
+                case 'http':
+                    proxyPort.placeholder = '8080';
+                    proxyHost.placeholder = '127.0.0.1';
+                    break;
+                case 'https':
+                    proxyPort.placeholder = '443';
+                    proxyHost.placeholder = '127.0.0.1';
+                    break;
+                case 'socks4':
+                case 'socks5':
+                    proxyPort.placeholder = '1080';
+                    proxyHost.placeholder = '127.0.0.1';
+                    break;
+                default:
+                    proxyPort.placeholder = '8080';
+                    proxyHost.placeholder = '127.0.0.1';
+            }
+        }
+        
+        function testProxyUrl() {
+            const proxyType = document.getElementById('proxy_type').value;
+            const proxyHost = document.getElementById('proxy_host').value;
+            const proxyPort = document.getElementById('proxy_port').value;
+            const proxyUsername = document.getElementById('proxy_username').value;
+            const proxyPassword = document.getElementById('proxy_password').value;
+            const proxyVerifySsl = document.getElementById('proxy_verify_ssl').checked;
+            
+            let proxy = '';
+            if (proxyType && proxyHost && proxyPort) {
+                proxy = `${proxyType}://`;
+                if (proxyUsername && proxyPassword) {
+                    proxy += `${encodeURIComponent(proxyUsername)}:${encodeURIComponent(proxyPassword)}@`;
+                }
+                proxy += `${proxyHost}:${proxyPort}`;
+            }
+            
+            const resultDiv = document.getElementById('proxy-result');
+            resultDiv.innerHTML = `
+                <strong>Результат:</strong><br>
+                URL прокси: <code>${proxy || '(не указан)'}</code><br>
+                Проверка SSL: <code>${proxyVerifySsl ? 'Включена' : 'Отключена'}</code><br>
+                Тип: <code>${proxyType || '(не указан)'}</code>
+            `;
+        }
+        
+        // Run tests on page load
+        window.onload = function() {
+            const results = document.getElementById('test-results');
+            let testOutput = '';
+            
+            // Test updateProxyPlaceholder function
+            try {
+                const originalType = document.getElementById('proxy_type').value;
+                document.getElementById('proxy_type').value = 'http';
+                updateProxyPlaceholder();
+                const httpPort = document.getElementById('proxy_port').placeholder;
+                
+                document.getElementById('proxy_type').value = 'socks5';
+                updateProxyPlaceholder();
+                const socksPort = document.getElementById('proxy_port').placeholder;
+                
+                if (httpPort === '8080' && socksPort === '1080') {
+                    testOutput += '<div class="success">✓ Функция updateProxyPlaceholder работает корректно</div>';
+                } else {
+                    testOutput += '<div class="error">✗ Функция updateProxyPlaceholder работает некорректно</div>';
+                }
+                
+                document.getElementById('proxy_type').value = originalType;
+                updateProxyPlaceholder();
+            } catch (e) {
+                testOutput += `<div class="error">✗ Ошибка в функции updateProxyPlaceholder: ${e.message}</div>`;
+            }
+            
+            results.innerHTML = testOutput;
+        };
+    </script>
+</body>
+</html>

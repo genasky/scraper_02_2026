@@ -6,9 +6,9 @@ from . import config as cfg
 
 class MultipleSearchEngines(object):
     '''Uses multiple search engines.'''
-    def __init__(self, engines, proxy=cfg.PROXY, timeout=cfg.TIMEOUT, language='en', country='', safe_search='moderate', proxy_verify_ssl=True):
+    def __init__(self, engines, proxy=cfg.PROXY, timeout=cfg.TIMEOUT):
         self._engines = [
-            se(proxy, timeout, language, country, safe_search, proxy_verify_ssl) 
+            se(proxy, timeout) 
             for se in search_engines_dict.values() 
             if se.__name__.lower() in engines
         ]
@@ -23,35 +23,9 @@ class MultipleSearchEngines(object):
         '''Filters search results based on the operator.'''
         self._filter = operator
 
-    def set_language(self, language):
-        '''Sets the language preference for all engines.'''
-        for engine in self._engines:
-            engine.set_language(language)
-    
-    def set_country(self, country):
-        '''Sets the country preference for all engines.'''
-        for engine in self._engines:
-            engine.set_country(country)
-    
-    def set_safe_search(self, safe_search):
-        '''Sets the safe search level for all engines.'''
-        for engine in self._engines:
-            engine.set_safe_search(safe_search)
-    
-    def set_result_type(self, result_type):
-        '''Sets the result type preference for all engines.'''
-        for engine in self._engines:
-            engine.set_result_type(result_type)
-
     async def close(self):
         for e in self._engines:
             await e.close()
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.close()
 
     async def search(self, query, pages=cfg.SEARCH_ENGINE_RESULTS_PAGES):
         '''Searches multiples engines and collects the results.'''
@@ -98,8 +72,8 @@ class MultipleSearchEngines(object):
 
 class AllSearchEngines(MultipleSearchEngines):
     '''Uses all search engines.'''
-    def __init__(self, proxy=cfg.PROXY, timeout=cfg.TIMEOUT, language='en', country='', safe_search='moderate', proxy_verify_ssl=True):
+    def __init__(self, proxy=cfg.PROXY, timeout=cfg.TIMEOUT):
         super(AllSearchEngines, self).__init__(
-            list(search_engines_dict), proxy, timeout, language, country, safe_search, proxy_verify_ssl
+            list(search_engines_dict), proxy, timeout
         )
 

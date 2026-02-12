@@ -13,21 +13,14 @@ from . import config as cfg
 
 class SearchEngine(object):
     '''The base class for all Search Engines.'''
-    def __init__(self, proxy=cfg.PROXY, timeout=cfg.TIMEOUT, language='en', country='', safe_search='moderate', proxy_verify_ssl=True, *args, **kwargs):
+    def __init__(self, proxy=cfg.PROXY, timeout=cfg.TIMEOUT, *args, **kwargs):
         '''
         :param str proxy: optional, a proxy server  
         :param int timeout: optional, the HTTP timeout
-        :param str language: optional, the language preference
-        :param str country: optional, the country preference
-        :param str safe_search: optional, safe search level
-        :param bool proxy_verify_ssl: optional, verify SSL certificates for proxy
         '''
-        self._http_client = HttpClient(timeout, proxy, language, country, safe_search, proxy_verify_ssl) 
+        self._http_client = HttpClient(timeout, proxy) 
         self._query = ''
         self._filters = []
-        self._language = language
-        self._country = country
-        self._safe_search = safe_search
 
         self._min_delay = kwargs.get('min_delay', 1)
         _max_delay = kwargs.get('max_delay', 4)
@@ -172,38 +165,6 @@ class SearchEngine(object):
                 self.print_func(msg, level=out.Level.warning)
             else:
                 self._filters += [operator]
-    
-    def set_language(self, language):
-        '''Sets the language preference for search results.
-        
-        :param language: str The language code (e.g., 'ru', 'en', 'de')
-        '''
-        self._language = language
-        self._http_client.set_language(language)
-    
-    def set_country(self, country):
-        '''Sets the country preference for search results.
-        
-        :param country: str The country code (e.g., 'ru', 'us', 'gb')
-        '''
-        self._country = country
-        self._http_client.set_country(country)
-    
-    def set_safe_search(self, safe_search):
-        '''Sets the safe search level.
-        
-        :param safe_search: str The safe search level ('off', 'moderate', 'strict')
-        '''
-        self._safe_search = safe_search
-        self._http_client.set_safe_search(safe_search)
-    
-    def set_result_type(self, result_type):
-        '''Sets the result type preference.
-        
-        :param result_type: str The result type ('all', 'news', 'images', 'videos', 'shopping')
-        '''
-        self._result_type = result_type
-        # This can be implemented by specific engines as needed
     
     async def search(self, query, pages=cfg.SEARCH_ENGINE_RESULTS_PAGES):
         '''Queries the search engine, goes through the pages and collects the results.
