@@ -14,7 +14,7 @@ TIMEOUT = 10
 ## Default User-Agent string 
 USER_AGENT = 'search_engines/0.5'
 
-## Fake User-Agent string - Google desn't like the default user-agent
+## Fake User-Agent string - for search engines that don't like the default user-agent
 FAKE_USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; rv:84.0) Gecko/20100101 Firefox/84.0'
 
 ## Proxy server 

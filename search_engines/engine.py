@@ -75,7 +75,54 @@ class SearchEngine(object):
         '''Returns the URL of search results items.'''
         selector = self._selectors('url')
         url = self._get_tag_item(tag.select_one(selector), item)
-        return utils.unquote_url(url)
+        url = utils.unquote_url(url)
+        
+        # Handle Bing redirects
+        if url and 'bing.com/ck/a?' in url:
+            # Extract the actual URL from the redirect
+            from urllib.parse import urlparse, parse_qs
+            
+            parsed = urlparse(url)
+            query_params = parse_qs(parsed.query)
+            
+            # Get the 'u' parameter which contains the actual URL
+            if 'u' in query_params:
+                actual_url = query_params['u'][0]
+                print(f"Bing redirect: {url} -> {actual_url}")
+                return actual_url
+        
+        # Clean tracking parameters from search engines
+        if url and url.startswith('http'):
+            from urllib.parse import urlparse, parse_qs
+            
+            # Remove common tracking parameters
+            parsed = urlparse(url)
+            query_params = parse_qs(parsed.query)
+            
+            # Parameters to remove (tracking/analytics)
+            tracking_params = [
+                'fclid', 'ptn', 'ver', 'hsh', 'mkt', 
+                'cc', 'setlang', 'cvid', 'form', 'sp', 'sc', 'qs'
+            ]
+            
+            # Filter out tracking parameters
+            clean_params = {}
+            for key, values in query_params.items():
+                if key not in tracking_params:
+                    clean_params[key] = values
+            
+            # Rebuild clean URL
+            from urllib.parse import urlencode
+            clean_query = urlencode(clean_params, doseq=True)
+            
+            if clean_query:
+                clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}?{clean_query}"
+            else:
+                clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            
+            return clean_url
+        
+        return url
     
     def _get_title(self, tag, item='text'):
         '''Returns the title of search results items.'''
@@ -87,11 +134,24 @@ class SearchEngine(object):
         selector = self._selectors('text')
         return self._get_tag_item(tag.select_one(selector), item)
     
-    def _get_page(self, page, data=None):
+    async def _get_page(self, page, data=None):
         '''Gets pagination links.'''
         if data:
-            return self._http_client.post(page, data)
-        return self._http_client.get(page)
+            return await self._http_client.post(page, data)
+        response = await self._http_client.get(page)
+        
+        # Check for JavaScript redirects in Bing
+        if response.html and 'belgos.by' in response.html:
+            # Extract redirect URL from JavaScript
+            import re
+            redirect_match = re.search(r'window\.location\.href\s*=\s*["\']([^"\']+)["\']', response.html)
+            if redirect_match:
+                redirect_url = redirect_match.group(1)
+                print(f"Bing redirect detected to: {redirect_url}")
+                # Follow the redirect
+                return await self._http_client.get(redirect_url)
+        
+        return response
     
     def _get_tag_item(self, tag, item):
         '''Returns Tag attributes.'''

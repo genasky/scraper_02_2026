@@ -14,7 +14,7 @@ except ImportError as e:
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('-q', help='query', required=True)
-    ap.add_argument('-e', help='search engine(s) - ' + ', '.join(search_engines_dict), default='google')
+    ap.add_argument('-e', help='search engine(s) - ' + ', '.join(search_engines_dict), default='bing')
     ap.add_argument('-o', help='output file [html, csv, json]', default='print')
     ap.add_argument('-n', help='filename for output file', default=config.OUTPUT_DIR+'output')
     ap.add_argument('-p', help='number of pages', default=config.SEARCH_ENGINE_RESULTS_PAGES, type=int)

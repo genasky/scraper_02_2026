@@ -17,9 +17,9 @@ except ImportError as e:
 app = Flask(__name__)
 CORS(app)
 
-# Get working engines
+# Get working engines - only stable HTTP engines
 working_engines = {k: v for k, v in search_engines_dict.items() 
-                   if k in ['google', 'bing', 'yahoo', 'aol', 'duckduckgo', 'startpage', 'ask', 'torch']}
+                   if k in ['bing', 'yahoo', 'aol', 'duckduckgo', 'startpage', 'ecosia']}
 
 @app.route('/')
 def index():

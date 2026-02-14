@@ -72,6 +72,11 @@ class MultipleSearchEngines(object):
                     item for item in engine_results._results 
                     if item['host'] not in self.results.hosts()
                 ]
+            # Add engine name to each result
+            engine_name = engine.__class__.__name__.lower().replace('engine', '')
+            for result in engine_results._results:
+                result['engine'] = engine_name
+            
             self.results._results += engine_results._results
 
             if engine.is_banned:
