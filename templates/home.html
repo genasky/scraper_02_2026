@@ -197,6 +197,12 @@
                     <p>Анализ спаршенных страниц, поиск контактов компаний: телефоны, email, соцсети</p>
                 </a>
 
+                <a href="/Chat" class="dashboard-card scraper-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <i class="fas fa-comments"></i>
+                    <h3>Чат с AI</h3>
+                    <p>Общение с локальной моделью Ollama. Тестирование и просто чат</p>
+                </a>
+
                 <div class="dashboard-card settings-card" onclick="toggleAISettings()">
                     <i class="fas fa-robot"></i>
                     <h3>Настройки AI <span id="aiStatusIndicator" class="ai-status-indicator ai-status-disconnected">offline</span></h3>
@@ -282,7 +288,9 @@
                 enabled: document.getElementById('aiEnabled').checked,
                 ollamaUrl: document.getElementById('ollamaUrl').value,
                 model: document.getElementById('aiModel').value,
-                mode: document.getElementById('aiMode').value
+                mode: document.getElementById('aiMode').value,
+                autoStart: document.getElementById('autoStartOllama').checked,
+                autoStop: document.getElementById('autoStopOllama').checked
             };
             localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
         }

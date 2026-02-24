@@ -449,9 +449,13 @@
         function getAISettings() {
             const saved = localStorage.getItem(AI_SETTINGS_KEY);
             if (saved) {
-                return JSON.parse(saved);
+                const settings = JSON.parse(saved);
+                if (!settings.model) {
+                    settings.model = 'llama3.1:8b';
+                }
+                return settings;
             }
-            return { enabled: false, ollamaUrl: 'http://localhost:11434', model: 'llama3', mode: 'both' };
+            return { enabled: false, ollamaUrl: 'http://localhost:11434', model: 'llama3.1:8b', mode: 'both', autoStart: true, autoStop: true };
         }
         
         async function expandWithAI() {
@@ -576,22 +580,28 @@
             const settings = getAISettings();
             const allQueries = [originalQuery, ...aiVariants];
             
-            // Показываем индикатор загрузки
+            // Показываем секцию результатов и индикатор загрузки
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const loading = document.getElementById('loading');
+            
+            if (resultsSection) resultsSection.style.display = 'block';
+            if (loading) loading.style.display = 'block';
+            if (resultsContainer) resultsContainer.innerHTML = '';
+            
             const btnSearchAll = document.querySelector('.btn-search-all');
-            btnSearchAll.disabled = true;
-            btnSearchAll.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Поиск...';
+            if (btnSearchAll) {
+                btnSearchAll.disabled = true;
+                btnSearchAll.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Поиск...';
+            }
             
             showToast('Запускаем поиск по ' + allQueries.length + ' запросам...', 'info');
-            
-            // Сохраняем текущий запрос
-            const currentQuery = document.getElementById('query').value;
             
             // Выполняем поиск по каждому варианту
             const allResults = [];
             
             for (let i = 0; i < allQueries.length; i++) {
                 const q = allQueries[i];
-                showToast(`Поиск: ${i + 1}/${allQueries.length} - ${q}`, 'info');
                 
                 try {
                     const response = await fetch('/search', {
@@ -608,7 +618,6 @@
                     
                     const data = await response.json();
                     if (data.success && data.results) {
-                        // Добавляем маркер запроса к каждому результату
                         data.results.forEach(r => {
                             r.search_query = q;
                             allResults.push(r);
@@ -619,14 +628,19 @@
                 }
             }
             
-            btnSearchAll.disabled = false;
-            btnSearchAll.innerHTML = '<i class="fas fa-play"></i> По всем вариантам';
+            if (btnSearchAll) {
+                btnSearchAll.disabled = false;
+                btnSearchAll.innerHTML = '<i class="fas fa-play"></i> По всем вариантам';
+            }
+            
+            // Скрываем загрузку и показываем результаты
+            if (loading) loading.style.display = 'none';
             
             // Обновляем глобальную переменную результатов
             currentResults = allResults;
             
             // Отображаем результаты
-            displayResults(allResults, originalQuery, getSelectedEngines());
+            displayResults(allResults, originalQuery || allQueries[0] || 'Результаты поиска', getSelectedEngines());
             
             // Обновляем счетчик
             const countEl = document.querySelector('.results-count');

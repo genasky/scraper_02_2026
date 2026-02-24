@@ -132,7 +132,7 @@ class AIQueryExpander:
     DEFAULT_OLLAMA_URL = "http://localhost:11434"
     DEFAULT_TIMEOUT = 120
     
-    def __init__(self, ollama_url: str = DEFAULT_OLLAMA_URL, model: str = "llama3"):
+    def __init__(self, ollama_url: str = DEFAULT_OLLAMA_URL, model: str = "llama3.1:8b"):
         self.ollama_url = ollama_url.rstrip('/')
         self.model = model
         self.available_models: List[str] = []

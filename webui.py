@@ -287,6 +287,10 @@ def index():
 def scraper():
     return render_template('scraper.html', engines=working_engines)
 
+@app.route('/Chat')
+def chat():
+    return render_template('chat.html', engines=working_engines)
+
 @app.route('/Contacts')
 def contacts():
     return render_template('contacts.html', engines=working_engines)
@@ -489,7 +493,7 @@ def ai_expand():
     data = request.get_json()
     query = data.get('query', '')
     mode = data.get('mode', 'both')
-    model = data.get('model', 'llama3')
+    model = data.get('model', 'llama3.1:8b')
     ollama_url = data.get('ollama_url', 'http://localhost:11434')
     auto_start = data.get('auto_start', True)
     auto_stop = data.get('auto_stop', True)
@@ -517,6 +521,76 @@ def ai_stop():
     result = expander.ollama_manager.stop()
     
     return jsonify(result)
+
+
+@app.route('/api/chat', methods=['POST'])
+def chat_message():
+    if not AI_EXPANDER_AVAILABLE:
+        return jsonify({'success': False, 'error': 'AI module not available'}), 500
+    
+    data = request.get_json()
+    message = data.get('message', '')
+    model = data.get('model', 'llama3.1:8b')
+    ollama_url = data.get('ollama_url', 'http://localhost:11434')
+    history = data.get('history', [])
+    
+    if not message:
+        return jsonify({'success': False, 'error': 'Message is required'}), 400
+    
+    try:
+        import httpx
+        
+        expander = AIQueryExpander(ollama_url=ollama_url, model=model)
+        
+        if not expander.ollama_manager.is_running():
+            start_result = expander.ollama_manager.start()
+            if not start_result.get('success'):
+                return jsonify({'success': False, 'error': start_result.get('error', 'Cannot start Ollama')}), 500
+        
+        context = ""
+        for msg in history[-5:]:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            context += f"{role}: {content}\n"
+        
+        prompt = f"""Ты - полезный ассистент. Отвечай на русском языке, если пользователь пишет на русском.
+        
+История разговора:
+{context}
+
+Пользователь: {message}
+Ассистент:"""
+
+        with httpx.Client(timeout=120) as client:
+            response = client.post(
+                f"{ollama_url}/api/generate",
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.7,
+                        "num_predict": 2048
+                    }
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return jsonify({
+                    'success': True,
+                    'response': data.get('response', '').strip()
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'Ollama error: {response.status_code}'
+                }), 500
+                
+    except httpx.ConnectError:
+        return jsonify({'success': False, 'error': 'Cannot connect to Ollama'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def _parse_json_ld(soup, source_url, found_contacts):

@@ -59,6 +59,21 @@ async function handleSearch(e) {
         return;
     }
     
+    // Check if AI is enabled and auto-expand
+    const aiSettings = getAISettings();
+    if (aiSettings && aiSettings.enabled) {
+        showToast('AI включен - расширяем запрос...', 'info');
+        
+        // Expand query with AI
+        await expandWithAI();
+        
+        // If we got variants, search all of them
+        if (aiVariants && aiVariants.length > 0) {
+            await searchAllVariants();
+            return;
+        }
+    }
+    
     // Get selected engines
     const engines = [];
     const engineCheckboxes = document.querySelectorAll('input[name="engines"]:checked');
@@ -141,10 +156,13 @@ function displayResults(results, query, engines) {
     
     if (!resultsContainer) return;
     
+    // Ensure query is a string
+    const queryStr = typeof query === 'string' ? query : '';
+    
     if (results.length === 0) {
         resultsContainer.innerHTML = `
             <div class="no-results">
-                <p>По запросу "${query}" ничего не найдено</p>
+                <p>По запросу "${queryStr}" ничего не найдено</p>
                 <p>Попробуйте изменить запрос или выбрать другие поисковые системы</p>
             </div>
         `;
@@ -157,6 +175,11 @@ function displayResults(results, query, engines) {
     // Update results count
     if (resultsCount) {
         resultsCount.textContent = `${results.length} результатов`;
+    }
+    
+    // Show results section
+    if (resultsSection) {
+        resultsSection.style.display = 'block';
     }
     
     // Generate results HTML
