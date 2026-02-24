@@ -1,3 +1,5 @@
+import asyncio
+from typing import List, Optional
 from .results import SearchResults
 from .engines import search_engines_dict
 from . import output as out
@@ -53,34 +55,44 @@ class MultipleSearchEngines(object):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
+    async def _search_single_engine(self, engine, query, pages):
+        '''Search using a single engine and return results with engine name.'''
+        engine.ignore_duplicate_urls = self.ignore_duplicate_urls
+        engine.ignore_duplicate_domains = self.ignore_duplicate_domains
+        if self._filter:
+            engine.set_search_operator(self._filter)
+        
+        engine_results = await engine.search(query, pages)
+        
+        engine_name = engine.__class__.__name__.lower().replace('engine', '')
+        for result in engine_results._results:
+            result['engine'] = engine_name
+        
+        return engine, engine_results
+
     async def search(self, query, pages=cfg.SEARCH_ENGINE_RESULTS_PAGES):
-        '''Searches multiples engines and collects the results.'''
-        for engine in self._engines:
-            engine.ignore_duplicate_urls = self.ignore_duplicate_urls
-            engine.ignore_duplicate_domains = self.ignore_duplicate_domains
-            if self._filter:
-                engine.set_search_operator(self._filter)
+        '''Searches multiple engines in parallel and collects the results.'''
+        async def run_engine(engine):
+            engine, engine_results = await self._search_single_engine(engine, query, pages)
             
-            engine_results = await engine.search(query, pages)
-            if engine.ignore_duplicate_urls:
-                engine_results._results = [
-                    item for item in engine_results._results 
-                    if item['link'] not in self.results.links()
-                ]
-            if self.ignore_duplicate_domains:
-                engine_results._results = [
-                    item for item in engine_results._results 
-                    if item['host'] not in self.results.hosts()
-                ]
-            # Add engine name to each result
-            engine_name = engine.__class__.__name__.lower().replace('engine', '')
-            for result in engine_results._results:
-                result['engine'] = engine_name
-            
-            self.results._results += engine_results._results
+            if self.ignore_duplicate_urls or self.ignore_duplicate_domains:
+                for item in engine_results._results:
+                    is_duplicate = False
+                    if self.ignore_duplicate_urls and item['link'] in self.results.links():
+                        is_duplicate = True
+                    if self.ignore_duplicate_domains and item['host'] in self.results.hosts():
+                        is_duplicate = True
+                    
+                    if not is_duplicate:
+                        self.results.append(item)
+            else:
+                self.results._results += engine_results._results
 
             if engine.is_banned:
                 self.banned_engines.append(engine.__class__.__name__)
+        
+        await asyncio.gather(*[run_engine(e) for e in self._engines], return_exceptions=True)
+        
         return self.results
     
     def output(self, output=out.PRINT, path=None):

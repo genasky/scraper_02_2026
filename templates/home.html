@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Engines Scraper - Главная</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .dashboard-card i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #4f46e5;
+        }
+        
+        .dashboard-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #1f2937;
+        }
+        
+        .dashboard-card p {
+            margin: 0;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+        
+        .scraper-card {
+            border-left: 4px solid #10b981;
+        }
+        
+        .contacts-card {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .settings-card {
+            border-left: 4px solid #8b5cf6;
+        }
+        
+        .debug-info {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .ai-settings-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            color: white;
+        }
+        
+        .ai-settings-section h3 {
+            margin: 0 0 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .ai-settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .ai-settings-grid .form-group {
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        
+        .ai-settings-grid label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .ai-settings-grid input[type="text"],
+        .ai-settings-grid select {
+            width: 100%;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .ai-settings-grid input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+        
+        .ai-toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .ai-status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-left: 1rem;
+        }
+        
+        .ai-status-connected {
+            background: #10b981;
+            color: white;
+        }
+        
+        .ai-status-disconnected {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .ai-status-checking {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-test-ai {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .btn-test-ai:hover {
+            background: #059669;
+        }
+        
+        .btn-test-ai:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-search"></i> Search Engines Scraper</h1>
+                <p>Мульти-поисковый парсер с AI-расширением запросов</p>
+            </div>
+        </header>
+
+        <div class="debug-info" id="debugInfo" style="display: none;">
+            <strong>DEBUG INFO:</strong> Время: <span id="debugTime"></span>
+        </div>
+
+        <main class="main-content">
+            <div class="dashboard">
+                <a href="/Scraper" class="dashboard-card scraper-card">
+                    <i class="fas fa-search-plus"></i>
+                    <h3>Поисковый парсер</h3>
+                    <p>Поиск по нескольким поисковым системам, парсинг результатов и экспорт данных</p>
+                </a>
+
+                <a href="/Contacts" class="dashboard-card contacts-card">
+                    <i class="fas fa-address-book"></i>
+                    <h3>Парсинг контактов</h3>
+                    <p>Анализ спаршенных страниц, поиск контактов компаний: телефоны, email, соцсети</p>
+                </a>
+
+                <div class="dashboard-card settings-card" onclick="toggleAISettings()">
+                    <i class="fas fa-robot"></i>
+                    <h3>Настройки AI <span id="aiStatusIndicator" class="ai-status-indicator ai-status-disconnected">offline</span></h3>
+                    <p>Подключение к локальной Ollama для AI-расширения поисковых запросов</p>
+                </div>
+            </div>
+
+            <section class="ai-settings-section" id="aiSettingsSection" style="display: none;">
+                <h3><i class="fas fa-robot"></i> Настройки AI-расширения запросов</h3>
+                
+                <div class="ai-settings-grid">
+                    <div class="form-group">
+                        <div class="ai-toggle-row">
+                            <input type="checkbox" id="aiEnabled">
+                            <label for="aiEnabled" style="margin: 0; cursor: pointer;">Включить AI-расширение</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ollamaUrl">URL Ollama:</label>
+                        <input type="text" id="ollamaUrl" value="http://localhost:11434" placeholder="http://localhost:11434">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="aiModel">Модель:</label>
+                        <select id="aiModel">
+                            <option value="">Загрузка...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="aiMode">Режим:</label>
+                        <select id="aiMode">
+                            <option value="both">Похожие + Расширенные</option>
+                            <option value="similar">Похожие запросы</option>
+                            <option value="expanded">Расширенные запросы</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1rem;">
+                    <button class="btn-test-ai" onclick="testAIConnection()">
+                        <i class="fas fa-plug"></i> Проверить подключение
+                    </button>
+                </div>
+            </section>
+
+            <section class="recent-activity" style="margin-top: 3rem;">
+                <h2><i class="fas fa-clock"></i> Последняя активность</h2>
+                <div class="activity-placeholder" style="background: #f9fafb; padding: 2rem; border-radius: 8px; text-align: center; color: #6b7280;">
+                    <p>Нет недавней активности</p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 Search Engines Scraper. Поддерживаемые движки: {% for engine in engines.keys() %}{{ engine|title }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        // AI Settings Management
+        const AI_SETTINGS_KEY = 'aiSearchSettings';
+        
+        function loadAISettings() {
+            const saved = localStorage.getItem(AI_SETTINGS_KEY);
+            if (saved) {
+                const settings = JSON.parse(saved);
+                document.getElementById('aiEnabled').checked = settings.enabled || false;
+                document.getElementById('ollamaUrl').value = settings.ollamaUrl || 'http://localhost:11434';
+                document.getElementById('aiModel').value = settings.model || '';
+                document.getElementById('aiMode').value = settings.mode || 'both';
+                document.getElementById('autoStartOllama').checked = settings.autoStart !== false;
+                document.getElementById('autoStopOllama').checked = settings.autoStop !== false;
+            }
+        }
+        
+        function saveAISettings() {
+            const settings = {
+                enabled: document.getElementById('aiEnabled').checked,
+                ollamaUrl: document.getElementById('ollamaUrl').value,
+                model: document.getElementById('aiModel').value,
+                mode: document.getElementById('aiMode').value
+            };
+            localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
+        }
+        
+        function toggleAISettings() {
+            const section = document.getElementById('aiSettingsSection');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function updateAIStatus(connected, models, error) {
+            const indicator = document.getElementById('aiStatusIndicator');
+            if (connected) {
+                indicator.className = 'ai-status-indicator ai-status-connected';
+                indicator.innerHTML = '<i class="fas fa-check"></i> online';
+                
+                const modelSelect = document.getElementById('aiModel');
+                modelSelect.innerHTML = '';
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    modelSelect.appendChild(opt);
+                });
+                
+                const saved = localStorage.getItem(AI_SETTINGS_KEY);
+                if (saved) {
+                    const settings = JSON.parse(saved);
+                    if (settings.model && models.includes(settings.model)) {
+                        modelSelect.value = settings.model;
+                    }
+                }
+            } else {
+                indicator.className = 'ai-status-indicator ai-status-disconnected';
+                indicator.innerHTML = '<i class="fas fa-times"></i> offline';
+                showToast(error || 'Ollama не подключена', 'error');
+            }
+        }
+        
+        async function testAIConnection() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Проверка...';
+            
+            const indicator = document.getElementById('aiStatusIndicator');
+            indicator.className = 'ai-status-indicator ai-status-checking';
+            indicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> checking...';
+            
+            try {
+                const response = await fetch('/api/ai-status');
+                const data = await response.json();
+                
+                if (data.connected) {
+                    updateAIStatus(true, data.models);
+                    showToast('Подключено! Моделей: ' + data.models.length, 'success');
+                } else {
+                    updateAIStatus(false, [], data.error);
+                }
+            } catch (e) {
+                updateAIStatus(false, [], e.message);
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plug"></i> Проверить подключение';
+        }
+        
+        // Event listeners
+        document.getElementById('aiEnabled').addEventListener('change', saveAISettings);
+        document.getElementById('ollamaUrl').addEventListener('change', saveAISettings);
+        document.getElementById('aiModel').addEventListener('change', saveAISettings);
+        document.getElementById('aiMode').addEventListener('change', saveAISettings);
+        document.getElementById('autoStartOllama').addEventListener('change', saveAISettings);
+        document.getElementById('autoStopOllama').addEventListener('change', saveAISettings);
+        
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAISettings();
+            document.getElementById('debugInfo').style.display = 'block';
+            document.getElementById('debugTime').textContent = new Date().toLocaleString();
+            
+            // Auto-check connection
+            testAIConnection();
+        });
+    </script>
+</body>
+</html>

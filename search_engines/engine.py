@@ -1,4 +1,7 @@
 import asyncio
+import base64
+import re
+from urllib.parse import urlparse, parse_qs, unquote, urlencode
 
 from bs4 import BeautifulSoup
 from random import uniform as random_uniform
@@ -79,40 +82,39 @@ class SearchEngine(object):
         
         # Handle Bing redirects
         if url and 'bing.com/ck/a?' in url:
-            # Extract the actual URL from the redirect
-            from urllib.parse import urlparse, parse_qs
-            
             parsed = urlparse(url)
             query_params = parse_qs(parsed.query)
             
-            # Get the 'u' parameter which contains the actual URL
             if 'u' in query_params:
                 actual_url = query_params['u'][0]
+                try:
+                    if actual_url.startswith('a1'):
+                        actual_url = actual_url[2:]
+                        decoded_bytes = base64.b64decode(actual_url)
+                        actual_url = decoded_bytes.decode('utf-8')
+                    else:
+                        actual_url = unquote(actual_url)
+                except:
+                    actual_url = unquote(actual_url)
+                
                 print(f"Bing redirect: {url} -> {actual_url}")
                 return actual_url
         
         # Clean tracking parameters from search engines
         if url and url.startswith('http'):
-            from urllib.parse import urlparse, parse_qs
-            
-            # Remove common tracking parameters
             parsed = urlparse(url)
             query_params = parse_qs(parsed.query)
             
-            # Parameters to remove (tracking/analytics)
             tracking_params = [
                 'fclid', 'ptn', 'ver', 'hsh', 'mkt', 
                 'cc', 'setlang', 'cvid', 'form', 'sp', 'sc', 'qs'
             ]
             
-            # Filter out tracking parameters
             clean_params = {}
             for key, values in query_params.items():
                 if key not in tracking_params:
                     clean_params[key] = values
             
-            # Rebuild clean URL
-            from urllib.parse import urlencode
             clean_query = urlencode(clean_params, doseq=True)
             
             if clean_query:
@@ -142,13 +144,10 @@ class SearchEngine(object):
         
         # Check for JavaScript redirects in Bing
         if response.html and 'belgos.by' in response.html:
-            # Extract redirect URL from JavaScript
-            import re
             redirect_match = re.search(r'window\.location\.href\s*=\s*["\']([^"\']+)["\']', response.html)
             if redirect_match:
                 redirect_url = redirect_match.group(1)
                 print(f"Bing redirect detected to: {redirect_url}")
-                # Follow the redirect
                 return await self._http_client.get(redirect_url)
         
         return response
@@ -276,14 +275,29 @@ class SearchEngine(object):
         self._query = utils.decode_bytes(query)
         request = await self._first_page()
 
+        consecutive_errors = 0
+        min_delay, max_delay = self._delay
+
         for page in range(1, pages + 1):
             try:
                 response = await self._get_page(request['url'], request['data'])
                 if not self._is_ok(response):
+                    consecutive_errors += 1
+                    if consecutive_errors >= 2:
+                        new_max = min(max_delay * 1.5, 30)
+                        self._max_delay = new_max
+                        self._delay = (min_delay, new_max)
+                        self.print_func(f"Increasing delay to {new_max}s after errors", level=out.Level.warning)
                     break
+                
+                consecutive_errors = 0
                 tags = BeautifulSoup(response.html, "html.parser")
                 items = self._filter_results(tags)
                 self._collect_results(items)
+                
+                if len(items) < 3 and page > 1:
+                    self._max_delay = min(max_delay * 1.2, 30)
+                    self._delay = (min_delay, self._max_delay)
                 
                 msg = 'page: {:<8} links: {}'.format(page, len(self.results))
                 self.print_func(msg, end='')

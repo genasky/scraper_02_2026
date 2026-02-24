@@ -15,8 +15,8 @@ class Bing(SearchEngine):
             'url': 'a[href]', 
             'title': 'h2', 
             'text': 'p', 
-            'links': 'ol#b_results > li.b_algo', 
-            'next': 'div#b_content nav[role="navigation"] a.sb_pagN'
+            'links': 'ol#b_results > li.b_algo, li.b_algo', 
+            'next': 'a.sb_pagN'
         }
         return selectors[element]
     

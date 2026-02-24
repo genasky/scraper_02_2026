@@ -14,8 +14,8 @@ class Ecosia(SearchEngine):
         selectors = {
             'url': 'div.mainline__result-wrapper a', 
             'title': 'div.mainline__result-wrapper a', 
-            'text': 'div.snippet', 
-            'links': 'div.mainline__result-wrapper', 
+            'text': 'p', 
+            'links': 'div.mainline__result-wrapper:not([data-test-id*="ad"])', 
             'next': 'a.pagination-next'
         }
         return selectors[element]

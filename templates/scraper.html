@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поисковый парсер - Search Engines Scraper</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .nav-breadcrumb {
+            background: #f8fafc;
+            padding: 1rem 20px;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .nav-breadcrumb a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        
+        .nav-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .nav-breadcrumb span {
+            color: #6b7280;
+            margin: 0 0.5rem;
+        }
+        
+        .query-input-wrapper {
+            display: flex;
+            gap: 0.5rem;
+            align-items: stretch;
+        }
+        
+        .query-input-wrapper input {
+            flex: 1;
+        }
+        
+        .btn-ai {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+        
+        .btn-ai:hover {
+            opacity: 0.9;
+        }
+        
+        .btn-ai:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .btn-ai-loading {
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .ai-variants-container {
+            display: none;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .ai-variants-container.visible {
+            display: block;
+        }
+        
+        .ai-variants-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .ai-variants-header h4 {
+            margin: 0;
+            color: #1f2937;
+        }
+        
+        .ai-variants-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .ai-variant-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .ai-variant-item:hover {
+            background: #f3f4f6;
+            border-color: #667eea;
+        }
+        
+        .ai-variant-item input[type="radio"] {
+            margin: 0;
+        }
+        
+        .ai-variant-item label {
+            flex: 1;
+            margin: 0;
+            cursor: pointer;
+        }
+        
+        .ai-variant-item .variant-type {
+            font-size: 0.7rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+        
+        .variant-type-alt {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .variant-type-exp {
+            background: #d1fae5;
+            color: #059669;
+        }
+        
+        .ai-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .btn-search-all {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-search-all:hover {
+            background: #059669;
+        }
+        
+        .btn-use-variant {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-use-variant:hover {
+            background: #4338ca;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-search-plus"></i> Поисковый парсер</h1>
+                <p>Поиск по нескольким поисковым системам</p>
+            </div>
+        </header>
+
+        <nav class="nav-breadcrumb">
+            <a href="/">Главная</a>
+            <span>/</span>
+            <span>Поисковый парсер</span>
+        </nav>
+
+        <main class="main-content">
+            <section class="search-section">
+                <div class="search-card">
+                    <h2><i class="fas fa-search"></i> Поиск</h2>
+                    
+                    <form id="searchForm" class="search-form">
+                        <div class="form-group">
+                            <label for="query">Запрос:</label>
+                            <div class="query-input-wrapper">
+                                <input type="text" id="query" name="query" placeholder="Введите поисковый запрос..." required>
+                                <button type="button" class="btn-ai" id="btnAI" onclick="expandWithAI()" title="Расширить запрос с помощью AI">
+                                    <i class="fas fa-robot"></i> AI
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="ai-variants-container" id="aiVariantsContainer">
+                            <div class="ai-variants-header">
+                                <h4><i class="fas fa-lightbulb"></i> Варианты от AI</h4>
+                                <button type="button" onclick="closeAIVariants()" style="background:none;border:none;cursor:pointer;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="ai-variants-list" id="aiVariantsList"></div>
+                            <div class="ai-actions">
+                                <button type="button" class="btn-search-all" onclick="searchAllVariants()">
+                                    <i class="fas fa-play"></i> По всем вариантам
+                                </button>
+                                <button type="button" class="btn-use-variant" onclick="useSelectedVariant()">
+                                    <i class="fas fa-search"></i> Выбранный
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Поисковые системы:</label>
+                                <div class="engine-controls">
+                                    <div class="select-all-controls">
+                                        <input type="checkbox" id="select_all" onchange="toggleAllEngines(this)">
+                                        <label for="select_all">Выбрать все</label>
+                                    </div>
+                                    <div class="engine-checkboxes">
+                                        {% for engine_name in engines.keys() %}
+                                        <div class="checkbox-wrapper">
+                                            <input type="checkbox" id="engine_{{ engine_name }}" name="engines" value="{{ engine_name }}" {% if loop.first %}checked{% endif %}>
+                                            <label for="engine_{{ engine_name }}">{{ engine_name|title }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="pages">Количество страниц:</label>
+                                <select id="pages" name="pages">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="5">5</option>
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="filter">Фильтр результатов:</label>
+                                <select id="filter" name="filter">
+                                    <option value="">Без фильтра</option>
+                                    <option value="title">По заголовку</option>
+                                    <option value="url">По URL</option>
+                                    <option value="text">По тексту</option>
+                                    <option value="host">По хосту</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="checkbox-wrapper" style="margin-top: 2rem;">
+                                    <input type="checkbox" id="ignore_duplicates" name="ignore_duplicates">
+                                    <label for="ignore_duplicates">Игнорировать дубликаты</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="advanced-settings">
+                            <button type="button" class="advanced-toggle" onclick="toggleAdvancedSettings()">
+                                <i class="fas fa-cog"></i> Расширенные настройки
+                            </button>
+                            
+                            <div class="advanced-content" id="advancedContent" style="display: none;">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="language">Язык результатов:</label>
+                                        <select id="language" name="language">
+                                            <option value="ru">Русский</option>
+                                            <option value="en">English</option>
+                                            <option value="de">Deutsch</option>
+                                            <option value="fr">Français</option>
+                                            <option value="es">Español</option>
+                                            <option value="zh">中文</option>
+                                            <option value="ja">日本語</option>
+                                            <option value="auto">Автоопределение</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="country">Страна/Регион:</label>
+                                        <select id="country" name="country">
+                                            <option value="">Автоопределение</option>
+                                            <option value="ru">Россия</option>
+                                            <option value="us">США</option>
+                                            <option value="gb">Великобритания</option>
+                                            <option value="de">Германия</option>
+                                            <option value="fr">Франция</option>
+                                            <option value="es">Испания</option>
+                                            <option value="it">Италия</option>
+                                            <option value="ua">Украина</option>
+                                            <option value="by">Беларусь</option>
+                                            <option value="kz">Казахстан</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="safe_search">Безопасный поиск:</label>
+                                        <select id="safe_search" name="safe_search">
+                                            <option value="off">Выкл</option>
+                                            <option value="moderate" selected>Умеренный</option>
+                                            <option value="strict">Строгий</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="result_type">Тип результатов:</label>
+                                        <select id="result_type" name="result_type">
+                                            <option value="all">Все типы</option>
+                                            <option value="news">Новости</option>
+                                            <option value="images">Изображения</option>
+                                            <option value="videos">Видео</option>
+                                            <option value="shopping">Покупки</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="checkbox-wrapper">
+                                        <input type="checkbox" id="use_tor" name="use_tor">
+                                        <label for="use_tor">Использовать Tor</label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <h4><i class="fas fa-network-wired"></i> Настройки прокси</h4>
+                                    <div class="proxy-settings">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="proxy_type">Тип прокси:</label>
+                                                <select id="proxy_type" name="proxy_type" onchange="updateProxyPlaceholder()">
+                                                    <option value="">Без прокси</option>
+                                                    <option value="http">HTTP</option>
+                                                    <option value="https">HTTPS</option>
+                                                    <option value="socks4">SOCKS4</option>
+                                                    <option value="socks5">SOCKS5</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="proxy_host">Хост:</label>
+                                                <input type="text" id="proxy_host" name="proxy_host" placeholder="127.0.0.1">
+                                            </div>
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="proxy_port">Порт:</label>
+                                                <input type="number" id="proxy_port" name="proxy_port" placeholder="8080" min="1" max="65535">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="proxy_username">Имя пользователя (опционально):</label>
+                                                <input type="text" id="proxy_username" name="proxy_username" placeholder="">
+                                            </div>
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="proxy_password">Пароль (опционально):</label>
+                                                <input type="password" id="proxy_password" name="proxy_password" placeholder="">
+                                            </div>
+                                            <div class="form-group">
+                                                <div class="checkbox-wrapper">
+                                                    <input type="checkbox" id="proxy_verify_ssl" name="proxy_verify_ssl" checked>
+                                                    <label for="proxy_verify_ssl">Проверять SSL сертификаты</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="search-btn">
+                            <i class="fas fa-search"></i> Найти
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <div class="results-header">
+                    <h2><i class="fas fa-list"></i> Результаты поиска</h2>
+                    <div class="results-actions">
+                        <span class="results-count"></span>
+                        <div class="export-buttons">
+                            <button class="export-btn" onclick="exportResults('json')">
+                                <i class="fas fa-download"></i> JSON
+                            </button>
+                            <button class="export-btn" onclick="exportResults('csv')">
+                                <i class="fas fa-download"></i> CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="loading" id="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Поиск выполняется...</p>
+                </div>
+
+                <div class="results-container" id="resultsContainer"></div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 Search Engines Scraper. Поддерживаемые движки: {% for engine in engines.keys() %}{{ engine|title }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        let aiVariants = [];
+        let originalQuery = '';
+        
+        const AI_SETTINGS_KEY = 'aiSearchSettings';
+        
+        function getAISettings() {
+            const saved = localStorage.getItem(AI_SETTINGS_KEY);
+            if (saved) {
+                return JSON.parse(saved);
+            }
+            return { enabled: false, ollamaUrl: 'http://localhost:11434', model: 'llama3', mode: 'both' };
+        }
+        
+        async function expandWithAI() {
+            const queryInput = document.getElementById('query');
+            const query = queryInput.value.trim();
+            
+            if (!query) {
+                showToast('Введите запрос для расширения', 'error');
+                return;
+            }
+            
+            const settings = getAISettings();
+            
+            if (!settings.enabled) {
+                showToast('AI-расширение отключено. Включите его на главной странице.', 'error');
+                return;
+            }
+            
+            const btnAI = document.getElementById('btnAI');
+            btnAI.disabled = true;
+            btnAI.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI...';
+            btnAI.classList.add('btn-ai-loading');
+            
+            try {
+                // Сначала проверяем статус
+                const statusResponse = await fetch('/api/ai-status');
+                const statusData = await statusResponse.json();
+                
+                // Если не подключена и автозапуск включен
+                if (!statusData.connected && settings.autoStart) {
+                    showToast('🔄 Запускаем Ollama...', 'info');
+                }
+                
+                const response = await fetch('/api/ai-expand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        mode: settings.mode,
+                        model: settings.model,
+                        ollama_url: settings.ollamaUrl,
+                        auto_start: settings.autoStart,
+                        auto_stop: settings.autoStop
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    aiVariants = data.variants || [];
+                    originalQuery = query;
+                    
+                    // Добавляем оригинальный запрос в начало
+                    const allQueries = [query, ...aiVariants];
+                    
+                    displayAIVariants(allQueries);
+                    
+                    let msg = 'Получено вариантов: ' + aiVariants.length;
+                    if (data.ollama_auto_started) {
+                        msg += ' (Ollama запущена автоматически)';
+                    }
+                    showToast(msg, 'success');
+                } else {
+                    showToast(data.error || 'Ошибка при расширении запроса', 'error');
+                }
+            } catch (e) {
+                showToast('Ошибка: ' + e.message, 'error');
+            }
+            
+            btnAI.disabled = false;
+            btnAI.innerHTML = '<i class="fas fa-robot"></i> AI';
+            btnAI.classList.remove('btn-ai-loading');
+        }
+        
+        function displayAIVariants(variants) {
+            const container = document.getElementById('aiVariantsContainer');
+            const list = document.getElementById('aiVariantsList');
+            
+            list.innerHTML = '';
+            
+            variants.forEach((variant, index) => {
+                const isOriginal = index === 0;
+                const type = isOriginal ? 'original' : (index <= 3 ? 'alt' : 'exp');
+                const typeLabel = isOriginal ? 'Оригинал' : (type === 'alt' ? 'ALT' : 'EXP');
+                const typeClass = isOriginal ? '' : (type === 'alt' ? 'variant-type-alt' : 'variant-type-exp');
+                
+                const item = document.createElement('div');
+                item.className = 'ai-variant-item';
+                item.innerHTML = `
+                    <input type="radio" name="aiVariant" id="variant_${index}" value="${index}" ${index === 0 ? 'checked' : ''}>
+                    <label for="variant_${index}">${variant}</label>
+                    <span class="variant-type ${typeClass}">${typeLabel}</span>
+                `;
+                list.appendChild(item);
+            });
+            
+            container.classList.add('visible');
+        }
+        
+        function closeAIVariants() {
+            const container = document.getElementById('aiVariantsContainer');
+            container.classList.remove('visible');
+        }
+        
+        function useSelectedVariant() {
+            const selected = document.querySelector('input[name="aiVariant"]:checked');
+            if (selected) {
+                const index = parseInt(selected.value);
+                const query = index === 0 ? originalQuery : aiVariants[index - 1];
+                document.getElementById('query').value = query;
+                closeAIVariants();
+                showToast('Выбран запрос: ' + query, 'success');
+            }
+        }
+        
+        async function searchAllVariants() {
+            if (aiVariants.length === 0 && !originalQuery) {
+                showToast('Нет вариантов для поиска', 'error');
+                return;
+            }
+            
+            const settings = getAISettings();
+            const allQueries = [originalQuery, ...aiVariants];
+            
+            // Показываем индикатор загрузки
+            const btnSearchAll = document.querySelector('.btn-search-all');
+            btnSearchAll.disabled = true;
+            btnSearchAll.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Поиск...';
+            
+            showToast('Запускаем поиск по ' + allQueries.length + ' запросам...', 'info');
+            
+            // Сохраняем текущий запрос
+            const currentQuery = document.getElementById('query').value;
+            
+            // Выполняем поиск по каждому варианту
+            const allResults = [];
+            
+            for (let i = 0; i < allQueries.length; i++) {
+                const q = allQueries[i];
+                showToast(`Поиск: ${i + 1}/${allQueries.length} - ${q}`, 'info');
+                
+                try {
+                    const response = await fetch('/search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            query: q,
+                            engines: getSelectedEngines(),
+                            pages: parseInt(document.getElementById('pages').value) || 1,
+                            ignore_duplicates: document.getElementById('ignore_duplicates').checked,
+                            filter: document.getElementById('filter').value
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success && data.results) {
+                        // Добавляем маркер запроса к каждому результату
+                        data.results.forEach(r => {
+                            r.search_query = q;
+                            allResults.push(r);
+                        });
+                    }
+                } catch (e) {
+                    console.error('Search error for query:', q, e);
+                }
+            }
+            
+            btnSearchAll.disabled = false;
+            btnSearchAll.innerHTML = '<i class="fas fa-play"></i> По всем вариантам';
+            
+            // Обновляем глобальную переменную результатов
+            currentResults = allResults;
+            
+            // Отображаем результаты
+            displayResults(allResults, originalQuery, getSelectedEngines());
+            
+            // Обновляем счетчик
+            const countEl = document.querySelector('.results-count');
+            if (countEl) countEl.textContent = allResults.length + ' результатов';
+            
+            showToast('Найдено всего результатов: ' + allResults.length, 'success');
+        }
+        
+        function getSelectedEngines() {
+            const checkboxes = document.querySelectorAll('input[name="engines"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        function updateResultsCount(count) {
+            const countEl = document.getElementById('resultsCount');
+            if (countEl) {
+                countEl.textContent = count;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 // Global variables
 let currentResults = [];
 
-// DOM elements
+// DOM elements - safely get them
 const searchForm = document.getElementById('searchForm');
 const resultsSection = document.getElementById('resultsSection');
 const loading = document.getElementById('loading');
@@ -11,12 +11,45 @@ const toast = document.getElementById('toast');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    searchForm.addEventListener('submit', handleSearch);
+    // Only add search form listener if form exists
+    if (searchForm) {
+        searchForm.addEventListener('submit', handleSearch);
+    }
+    
+    // Initialize page-specific functionality
+    initializePage();
 });
+
+// Initialize page-specific functionality
+function initializePage() {
+    const currentPath = window.location.pathname;
+    
+    if (currentPath === '/' || currentPath === '/Scraper') {
+        // Search page functionality
+        initializeSearchPage();
+    } else if (currentPath === '/Contacts') {
+        // Contacts page functionality
+        initializeContactsPage();
+    }
+}
+
+// Initialize search page
+function initializeSearchPage() {
+    // Additional search page setup if needed
+    console.log('Search page initialized');
+}
+
+// Initialize contacts page
+function initializeContactsPage() {
+    // Contacts page setup if needed
+    console.log('Contacts page initialized');
+}
 
 // Handle search form submission
 async function handleSearch(e) {
     e.preventDefault();
+    
+    if (!searchForm) return;
     
     const formData = new FormData(searchForm);
     const query = formData.get('query').trim();
@@ -72,7 +105,9 @@ async function handleSearch(e) {
     
     // Show loading
     showLoading(true);
-    resultsSection.style.display = 'block';
+    if (resultsSection) {
+        resultsSection.style.display = 'block';
+    }
     
     try {
         const response = await fetch('/search', {
@@ -104,6 +139,8 @@ async function handleSearch(e) {
 function displayResults(results, query, engines) {
     showLoading(false);
     
+    if (!resultsContainer) return;
+    
     if (results.length === 0) {
         resultsContainer.innerHTML = `
             <div class="no-results">
@@ -111,21 +148,25 @@ function displayResults(results, query, engines) {
                 <p>Попробуйте изменить запрос или выбрать другие поисковые системы</p>
             </div>
         `;
-        resultsCount.textContent = '0 результатов';
+        if (resultsCount) {
+            resultsCount.textContent = '0 результатов';
+        }
         return;
     }
     
     // Update results count
-    resultsCount.textContent = `${results.length} результатов`;
+    if (resultsCount) {
+        resultsCount.textContent = `${results.length} результатов`;
+    }
     
     // Generate results HTML
     const resultsHTML = results.map((result, index) => `
         <div class="result-item">
-            <a href="${result.link}" target="_blank" class="result-title">
+            <a href="${result.url || result.link}" target="_blank" class="result-title">
                 ${escapeHtml(result.title)}
             </a>
-            <div class="result-url">${escapeHtml(result.link)}</div>
-            <div class="result-snippet">${escapeHtml(result.snippet)}</div>
+            <div class="result-url">${escapeHtml(result.url || result.link)}</div>
+            <div class="result-snippet">${escapeHtml(result.description || result.snippet)}</div>
             <span class="result-engine">${result.engine}</span>
         </div>
     `).join('');
@@ -135,6 +176,8 @@ function displayResults(results, query, engines) {
 
 // Show/hide loading state
 function showLoading(show) {
+    if (!loading || !resultsContainer) return;
+    
     if (show) {
         loading.style.display = 'block';
         resultsContainer.style.display = 'none';
@@ -186,6 +229,8 @@ async function exportResults(format) {
 
 // Show toast notification
 function showToast(message, type = 'info') {
+    if (!toast) return;
+    
     toast.textContent = message;
     toast.className = `toast ${type}`;
     
@@ -202,6 +247,10 @@ function showToast(message, type = 'info') {
 
 // Escape HTML to prevent XSS
 function escapeHtml(text) {
+    if (!text || typeof text !== 'string') {
+        return '';
+    }
+    
     const map = {
         '&': '&amp;',
         '<': '&lt;',
@@ -234,17 +283,23 @@ function autoResize(textarea) {
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
+    // Only handle shortcuts on search pages
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/' && currentPath !== '/Scraper') return;
+    
     // Ctrl/Cmd + Enter to submit search
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         const activeElement = document.activeElement;
         if (activeElement && activeElement.id === 'query') {
-            searchForm.dispatchEvent(new Event('submit'));
+            if (searchForm) {
+                searchForm.dispatchEvent(new Event('submit'));
+            }
         }
     }
     
     // Escape to clear results
     if (e.key === 'Escape') {
-        if (resultsSection.style.display === 'block') {
+        if (resultsSection && resultsSection.style.display === 'block') {
             resultsSection.style.display = 'none';
             currentResults = [];
         }
@@ -253,7 +308,7 @@ document.addEventListener('keydown', function(e) {
 
 // Smooth scroll to results when search is performed
 function scrollToResults() {
-    if (resultsSection.style.display === 'block') {
+    if (resultsSection && resultsSection.style.display === 'block') {
         resultsSection.scrollIntoView({ 
             behavior: 'smooth',
             block: 'start'
@@ -270,10 +325,15 @@ displayResults = function(results, query, engines) {
 
 // Form validation
 function validateForm() {
-    const query = document.getElementById('query').value.trim();
+    if (!searchForm) return false;
+    
+    const query = document.getElementById('query');
+    if (!query) return false;
+    
+    const queryValue = query.value.trim();
     const engineCheckboxes = document.querySelectorAll('input[name="engines"]:checked');
     
-    if (!query) {
+    if (!queryValue) {
         showToast('Введите поисковый запрос', 'error');
         return false;
     }
@@ -290,22 +350,24 @@ function validateForm() {
 if (!window.fetch || !window.Promise) {
     showToast('Ваш браузер не поддерживает необходимые функции. Пожалуйста, обновите браузер.', 'error');
     // Disable form
-    searchForm.style.opacity = '0.5';
-    searchForm.style.pointerEvents = 'none';
+    if (searchForm) {
+        searchForm.style.opacity = '0.5';
+        searchForm.style.pointerEvents = 'none';
+    }
 }
 
-// Service Worker registration for offline support (optional)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
-            .then(function(registration) {
-                console.log('SW registered: ', registration);
-            })
-            .catch(function(registrationError) {
-                console.log('SW registration failed: ', registrationError);
-            });
-    });
-}
+// Service Worker registration completely disabled
+// if ('serviceWorker' in navigator) {
+//     window.addEventListener('load', function() {
+//         navigator.serviceWorker.register('/sw.js')
+//             .then(function(registration) {
+//                 console.log('SW registered: ', registration);
+//             })
+//             .catch(function(registrationError) {
+//                 console.log('SW registration failed: ', registrationError);
+//             });
+//     });
+// }
 
 // Toggle all search engines
 function toggleAllEngines(selectAllCheckbox) {
@@ -320,6 +382,8 @@ function toggleAdvancedSettings() {
     const advancedContent = document.getElementById('advancedContent');
     const toggleButton = document.querySelector('.advanced-toggle');
     
+    if (!advancedContent || !toggleButton) return;
+    
     if (advancedContent.style.display === 'none') {
         advancedContent.style.display = 'block';
         toggleButton.innerHTML = '<i class="fas fa-chevron-up"></i> Скрыть расширенные настройки';
@@ -331,12 +395,14 @@ function toggleAdvancedSettings() {
 
 // Update proxy placeholder based on proxy type
 function updateProxyPlaceholder() {
-    const proxyType = document.getElementById('proxy_type').value;
+    const proxyType = document.getElementById('proxy_type');
     const proxyHost = document.getElementById('proxy_host');
     const proxyPort = document.getElementById('proxy_port');
     
+    if (!proxyType || !proxyHost || !proxyPort) return;
+    
     // Set default ports based on proxy type
-    switch (proxyType) {
+    switch (proxyType.value) {
         case 'http':
             proxyPort.placeholder = '8080';
             proxyHost.placeholder = '127.0.0.1';

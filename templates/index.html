@@ -3,223 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Engines Scraper - WebUI</title>
+    <title>Search Engines Scraper - Панель управления</title>
+    <meta http-equiv="refresh" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="content-type" content="no-cache">
+    <meta http-equiv="content-type" content="0">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .dashboard-card i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #4f46e5;
+        }
+        
+        .dashboard-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #1f2937;
+        }
+        
+        .dashboard-card p {
+            margin: 0;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+        
+        .scraper-card {
+            border-left: 4px solid #10b981;
+        }
+        
+        .contacts-card {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .stats-card {
+            border-left: 4px solid #3b82f6;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <div class="header-content">
                 <h1><i class="fas fa-search"></i> Search Engines Scraper</h1>
-                <p>Мульти-поисковый парсер с веб-интерфейсом</p>
+                <p>Панель управления - Мульти-поисковый парсер</p>
             </div>
         </header>
 
         <main class="main-content">
-            <section class="search-section">
-                <div class="search-card">
-                    <h2><i class="fas fa-search-plus"></i> Поиск</h2>
-                    
-                    <form id="searchForm" class="search-form">
-                        <div class="form-group">
-                            <label for="query">Запрос:</label>
-                            <input type="text" id="query" name="query" placeholder="Введите поисковый запрос..." required>
-                        </div>
+            <div class="dashboard">
+                <a href="/Scraper" class="dashboard-card scraper-card">
+                    <i class="fas fa-search-plus"></i>
+                    <h3>Поисковый парсер</h3>
+                    <p>Поиск по нескольким поисковым системам, парсинг результатов и экспорт данных</p>
+                </a>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Поисковые системы:</label>
-                                <div class="engine-controls">
-                                    <div class="select-all-controls">
-                                        <input type="checkbox" id="select_all" onchange="toggleAllEngines(this)">
-                                        <label for="select_all">Выбрать все</label>
-                                    </div>
-                                    <div class="engine-checkboxes">
-                                        {% for engine_name in engines.keys() %}
-                                        <div class="checkbox-wrapper">
-                                            <input type="checkbox" id="engine_{{ engine_name }}" name="engines" value="{{ engine_name }}" {% if loop.first %}checked{% endif %}>
-                                            <label for="engine_{{ engine_name }}">{{ engine_name|title }}</label>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
+                <a href="/Contacts" class="dashboard-card contacts-card">
+                    <i class="fas fa-address-book"></i>
+                    <h3>Парсинг контактов</h3>
+                    <p>Анализ спаршенных страниц, поиск контактов компаний: телефоны, email, соцсети</p>
+                </a>
 
-                            <div class="form-group">
-                                <label for="pages">Количество страниц:</label>
-                                <select id="pages" name="pages">
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="5">5</option>
-                                    <option value="10">10</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="filter">Фильтр результатов:</label>
-                                <select id="filter" name="filter">
-                                    <option value="">Без фильтра</option>
-                                    <option value="title">По заголовку</option>
-                                    <option value="url">По URL</option>
-                                    <option value="text">По тексту</option>
-                                    <option value="host">По хосту</option>
-                                </select>
-                            </div>
-
-                        <div class="form-group">
-                            <div class="checkbox-wrapper">
-                                <input type="checkbox" id="ignore_duplicates" name="ignore_duplicates">
-                                <label for="ignore_duplicates">Игнорировать дубликаты</label>
-                            </div>
-                        </div>
-
-                        <div class="advanced-settings">
-                            <button type="button" class="advanced-toggle" onclick="toggleAdvancedSettings()">
-                                <i class="fas fa-cog"></i> Расширенные настройки
-                            </button>
-                            
-                            <div class="advanced-content" id="advancedContent" style="display: none;">
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="language">Язык результатов:</label>
-                                        <select id="language" name="language">
-                                            <option value="ru">Русский</option>
-                                            <option value="en">English</option>
-                                            <option value="de">Deutsch</option>
-                                            <option value="fr">Français</option>
-                                            <option value="es">Español</option>
-                                            <option value="zh">中文</option>
-                                            <option value="ja">日本語</option>
-                                            <option value="auto">Автоопределение</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="country">Страна/Регион:</label>
-                                        <select id="country" name="country">
-                                            <option value="">Автоопределение</option>
-                                            <option value="ru">Россия</option>
-                                            <option value="us">США</option>
-                                            <option value="gb">Великобритания</option>
-                                            <option value="de">Германия</option>
-                                            <option value="fr">Франция</option>
-                                            <option value="es">Испания</option>
-                                            <option value="it">Италия</option>
-                                            <option value="ua">Украина</option>
-                                            <option value="by">Беларусь</option>
-                                            <option value="kz">Казахстан</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="safe_search">Безопасный поиск:</label>
-                                        <select id="safe_search" name="safe_search">
-                                            <option value="off">Выкл</option>
-                                            <option value="moderate" selected>Умеренный</option>
-                                            <option value="strict">Строгий</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="result_type">Тип результатов:</label>
-                                        <select id="result_type" name="result_type">
-                                            <option value="all">Все типы</option>
-                                            <option value="news">Новости</option>
-                                            <option value="images">Изображения</option>
-                                            <option value="videos">Видео</option>
-                                            <option value="shopping">Покупки</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <div class="checkbox-wrapper">
-                                        <input type="checkbox" id="use_tor" name="use_tor">
-                                        <label for="use_tor">Использовать Tor</label>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <h4><i class="fas fa-network-wired"></i> Настройки прокси</h4>
-                                    <div class="proxy-settings">
-                                        <div class="form-row">
-                                            <div class="form-group">
-                                                <label for="proxy_type">Тип прокси:</label>
-                                                <select id="proxy_type" name="proxy_type" onchange="updateProxyPlaceholder()">
-                                                    <option value="">Без прокси</option>
-                                                    <option value="http">HTTP</option>
-                                                    <option value="https">HTTPS</option>
-                                                    <option value="socks4">SOCKS4</option>
-                                                    <option value="socks5">SOCKS5</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="proxy_host">Хост:</label>
-                                                <input type="text" id="proxy_host" name="proxy_host" placeholder="127.0.0.1">
-                                            </div>
-                                        </div>
-                                        <div class="form-row">
-                                            <div class="form-group">
-                                                <label for="proxy_port">Порт:</label>
-                                                <input type="number" id="proxy_port" name="proxy_port" placeholder="8080" min="1" max="65535">
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="proxy_username">Имя пользователя (опционально):</label>
-                                                <input type="text" id="proxy_username" name="proxy_username" placeholder="">
-                                            </div>
-                                        </div>
-                                        <div class="form-row">
-                                            <div class="form-group">
-                                                <label for="proxy_password">Пароль (опционально):</label>
-                                                <input type="password" id="proxy_password" name="proxy_password" placeholder="">
-                                            </div>
-                                            <div class="form-group">
-                                                <div class="checkbox-wrapper">
-                                                    <input type="checkbox" id="proxy_verify_ssl" name="proxy_verify_ssl" checked>
-                                                    <label for="proxy_verify_ssl">Проверять SSL сертификаты</label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="search-btn">
-                            <i class="fas fa-search"></i> Найти
-                        </button>
-                    </form>
+                <div class="dashboard-card stats-card">
+                    <i class="fas fa-chart-bar"></i>
+                    <h3>Статистика</h3>
+                    <p>Просмотр статистики использования и результатов парсинга</p>
                 </div>
-            </section>
+            </div>
 
-            <section class="results-section" id="resultsSection" style="display: none;">
-                <div class="results-header">
-                    <h2><i class="fas fa-list"></i> Результаты поиска</h2>
-                    <div class="results-actions">
-                        <span class="results-count"></span>
-                        <div class="export-buttons">
-                            <button class="export-btn" onclick="exportResults('json')">
-                                <i class="fas fa-download"></i> JSON
-                            </button>
-                            <button class="export-btn" onclick="exportResults('csv')">
-                                <i class="fas fa-download"></i> CSV
-                            </button>
-                        </div>
-                    </div>
+            <section class="recent-activity" style="margin-top: 3rem;">
+                <h2><i class="fas fa-clock"></i> Последняя активность</h2>
+                <div class="activity-placeholder" style="background: #f9fafb; padding: 2rem; border-radius: 8px; text-align: center; color: #6b7280;">
+                    <p>Нет недавней активности</p>
                 </div>
-
-                <div class="loading" id="loading" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>Поиск выполняется...</p>
-                </div>
-
-                <div class="results-container" id="resultsContainer"></div>
             </section>
         </main>
 
