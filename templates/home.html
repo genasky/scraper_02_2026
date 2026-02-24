@@ -271,26 +271,40 @@
         const AI_SETTINGS_KEY = 'aiSearchSettings';
         
         function loadAISettings() {
+            const aiEnabledEl = document.getElementById('aiEnabled');
+            const ollamaUrlEl = document.getElementById('ollamaUrl');
+            const aiModelEl = document.getElementById('aiModel');
+            const aiModeEl = document.getElementById('aiMode');
+            const autoStartEl = document.getElementById('autoStartOllama');
+            const autoStopEl = document.getElementById('autoStopOllama');
+            
             const saved = localStorage.getItem(AI_SETTINGS_KEY);
-            if (saved) {
+            if (saved && aiEnabledEl) {
                 const settings = JSON.parse(saved);
-                document.getElementById('aiEnabled').checked = settings.enabled || false;
-                document.getElementById('ollamaUrl').value = settings.ollamaUrl || 'http://localhost:11434';
-                document.getElementById('aiModel').value = settings.model || '';
-                document.getElementById('aiMode').value = settings.mode || 'both';
-                document.getElementById('autoStartOllama').checked = settings.autoStart !== false;
-                document.getElementById('autoStopOllama').checked = settings.autoStop !== false;
+                aiEnabledEl.checked = settings.enabled || false;
+                if (ollamaUrlEl) ollamaUrlEl.value = settings.ollamaUrl || 'http://localhost:11434';
+                if (aiModelEl) aiModelEl.value = settings.model || '';
+                if (aiModeEl) aiModeEl.value = settings.mode || 'both';
+                if (autoStartEl) autoStartEl.checked = settings.autoStart !== false;
+                if (autoStopEl) autoStopEl.checked = settings.autoStop !== false;
             }
         }
         
         function saveAISettings() {
+            const aiEnabledEl = document.getElementById('aiEnabled');
+            const ollamaUrlEl = document.getElementById('ollamaUrl');
+            const aiModelEl = document.getElementById('aiModel');
+            const aiModeEl = document.getElementById('aiMode');
+            const autoStartEl = document.getElementById('autoStartOllama');
+            const autoStopEl = document.getElementById('autoStopOllama');
+            
             const settings = {
-                enabled: document.getElementById('aiEnabled').checked,
-                ollamaUrl: document.getElementById('ollamaUrl').value,
-                model: document.getElementById('aiModel').value,
-                mode: document.getElementById('aiMode').value,
-                autoStart: document.getElementById('autoStartOllama').checked,
-                autoStop: document.getElementById('autoStopOllama').checked
+                enabled: aiEnabledEl ? aiEnabledEl.checked : false,
+                ollamaUrl: ollamaUrlEl ? ollamaUrlEl.value : 'http://localhost:11434',
+                model: aiModelEl ? aiModelEl.value : 'llama3.1:8b',
+                mode: aiModeEl ? aiModeEl.value : 'both',
+                autoStart: autoStartEl ? autoStartEl.checked : true,
+                autoStop: autoStopEl ? autoStopEl.checked : true
             };
             localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
         }
@@ -357,12 +371,19 @@
         }
         
         // Event listeners
-        document.getElementById('aiEnabled').addEventListener('change', saveAISettings);
-        document.getElementById('ollamaUrl').addEventListener('change', saveAISettings);
-        document.getElementById('aiModel').addEventListener('change', saveAISettings);
-        document.getElementById('aiMode').addEventListener('change', saveAISettings);
-        document.getElementById('autoStartOllama').addEventListener('change', saveAISettings);
-        document.getElementById('autoStopOllama').addEventListener('change', saveAISettings);
+        const aiEnabledEl = document.getElementById('aiEnabled');
+        const ollamaUrlEl = document.getElementById('ollamaUrl');
+        const aiModelEl = document.getElementById('aiModel');
+        const aiModeEl = document.getElementById('aiMode');
+        const autoStartEl = document.getElementById('autoStartOllama');
+        const autoStopEl = document.getElementById('autoStopOllama');
+        
+        if (aiEnabledEl) aiEnabledEl.addEventListener('change', saveAISettings);
+        if (ollamaUrlEl) ollamaUrlEl.addEventListener('change', saveAISettings);
+        if (aiModelEl) aiModelEl.addEventListener('change', saveAISettings);
+        if (aiModeEl) aiModeEl.addEventListener('change', saveAISettings);
+        if (autoStartEl) autoStartEl.addEventListener('change', saveAISettings);
+        if (autoStopEl) autoStopEl.addEventListener('change', saveAISettings);
         
         // Init
         document.addEventListener('DOMContentLoaded', () => {

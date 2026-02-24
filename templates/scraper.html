@@ -474,20 +474,18 @@
                 return;
             }
             
+            if (!settings.model) {
+                showToast('Выберите модель AI на главной странице', 'error');
+                return;
+            }
+            
             const btnAI = document.getElementById('btnAI');
             btnAI.disabled = true;
-            btnAI.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI...';
+            btnAI.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + settings.model + '...';
             btnAI.classList.add('btn-ai-loading');
             
             try {
-                // Сначала проверяем статус
-                const statusResponse = await fetch('/api/ai-status');
-                const statusData = await statusResponse.json();
-                
-                // Если не подключена и автозапуск включен
-                if (!statusData.connected && settings.autoStart) {
-                    showToast('🔄 Запускаем Ollama...', 'info');
-                }
+                showToast('Подключаемся к ' + settings.model + '...', 'info');
                 
                 const response = await fetch('/api/ai-expand', {
                     method: 'POST',
@@ -508,7 +506,6 @@
                     aiVariants = data.variants || [];
                     originalQuery = query;
                     
-                    // Добавляем оригинальный запрос в начало
                     const allQueries = [query, ...aiVariants];
                     
                     displayAIVariants(allQueries);
@@ -660,6 +657,47 @@
                 countEl.textContent = count;
             }
         }
+        
+        // Initialize AI connection on page load
+        async function initAIOnScraper() {
+            const settings = getAISettings();
+            const btnAI = document.getElementById('btnAI');
+            
+            if (!settings.enabled) {
+                if (btnAI) {
+                    btnAI.disabled = true;
+                    btnAI.title = 'AI отключен. Включите на главной странице.';
+                }
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ai-status');
+                const data = await response.json();
+                
+                if (data.connected) {
+                    if (btnAI) {
+                        btnAI.disabled = false;
+                        btnAI.title = 'Расширить запрос с помощью AI';
+                    }
+                } else {
+                    if (btnAI) {
+                        btnAI.disabled = true;
+                        btnAI.title = 'Ollama не подключена: ' + (data.error || 'Unknown error');
+                    }
+                }
+            } catch (e) {
+                if (btnAI) {
+                    btnAI.disabled = true;
+                    btnAI.title = 'Ошибка подключения: ' + e.message;
+                }
+            }
+        }
+        
+        // Run on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initAIOnScraper();
+        });
     </script>
 </body>
 </html>
