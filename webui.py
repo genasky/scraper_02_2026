@@ -38,6 +38,14 @@ except ImportError as e:
     AI_EXPANDER_AVAILABLE = False
     print(f"Warning: AI expander not available: {e}")
 
+try:
+    from search_engines.agent import TaskAgent
+    AGENT_AVAILABLE = True
+    print("✅ AI Agent доступен")
+except ImportError as e:
+    AGENT_AVAILABLE = False
+    print(f"Warning: AI agent not available: {e}")
+
 # Функции валидации контактов
 FAKE_EMAIL_DOMAINS = [
     '10minutemail', 'tempmail', 'guerrillamail', 'mailinator', 'throwaway',
@@ -1398,8 +1406,83 @@ def parse_contacts_endpoint():
         'total': len(final_contacts)
     })
 
+@app.route('/Agent')
+def agent_page():
+    return render_template('agent.html', engines=working_engines)
+
+
+@app.route('/api/agent-status', methods=['GET'])
+def agent_status():
+    if not AGENT_AVAILABLE:
+        return jsonify({'available': False, 'error': 'Agent module not available'}), 500
+    
+    agent = TaskAgent()
+    status = agent.check_connection()
+    
+    return jsonify({
+        'available': True,
+        'connected': status.get('connected', False),
+        'models': status.get('models', []),
+        'default_model': status.get('default_model'),
+        'error': status.get('error')
+    })
+
+
+@app.route('/api/agent-create-plan', methods=['POST'])
+def agent_create_plan():
+    if not AGENT_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Agent module not available'}), 500
+    
+    data = request.get_json()
+    task_description = data.get('task', '')
+    model = data.get('model', 'llama3.1:8b')
+    ollama_url = data.get('ollama_url', 'http://localhost:11434')
+    
+    if not task_description:
+        return jsonify({'success': False, 'error': 'Task description is required'}), 400
+    
+    async def create_plan_async():
+        agent = TaskAgent(ollama_url=ollama_url, model=model)
+        return await agent.create_plan(task_description)
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    result = loop.run_until_complete(create_plan_async())
+    loop.close()
+    
+    return jsonify(result)
+
+
+@app.route('/api/agent-execute', methods=['POST'])
+def agent_execute():
+    if not AGENT_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Agent module not available'}), 500
+    
+    data = request.get_json()
+    task_description = data.get('task', '')
+    model = data.get('model', 'llama3.1:8b')
+    ollama_url = data.get('ollama_url', 'http://localhost:11434')
+    execute_now = data.get('execute', True)
+    
+    if not task_description:
+        return jsonify({'success': False, 'error': 'Task description is required'}), 400
+    
+    async def run_task_async():
+        agent = TaskAgent(ollama_url=ollama_url, model=model)
+        if execute_now:
+            return await agent.run_task(task_description)
+        else:
+            return await agent.create_plan(task_description)
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    result = loop.run_until_complete(run_task_async())
+    loop.close()
+    
+    return jsonify(result)
+
+
 if __name__ == '__main__':
     if not os.path.exists('exports'):
         os.makedirs('exports')
-    # Запускаем Flask в однопоточном режиме, чтобы избежать конфликтов
     app.run(debug=False, host='0.0.0.0', port=5003, threaded=False)

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent - Scraper</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .agent-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .agent-status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .agent-status.connected {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .agent-status.disconnected {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .task-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .task-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            transition: background 0.3s;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .plan-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .plan-step {
+            padding: 10px 15px;
+            margin: 8px 0;
+            background: white;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        
+        .plan-step-number {
+            font-weight: bold;
+            color: #007bff;
+            margin-right: 10px;
+        }
+        
+        .plan-step-action {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .results-display {
+            margin-top: 20px;
+        }
+        
+        .result-section {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .result-section h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #007bff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .options-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .option-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .option-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .option-group select,
+        .option-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .nav-breadcrumb {
+            background: #f8fafc;
+            padding: 1rem 20px;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .nav-breadcrumb a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        
+        .nav-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        .nav-breadcrumb span {
+            color: #6b7280;
+            margin: 0 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-robot"></i> AI Agent</h1>
+                <p>Автоматический агент для поиска и сбора контактов</p>
+            </div>
+        </header>
+
+        <nav class="nav-breadcrumb">
+            <a href="/">Главная</a>
+            <span>/</span>
+            <span>AI Agent</span>
+        </nav>
+
+        <main class="main-content">
+            <div class="agent-container">
+        
+        <div id="statusDisplay" class="agent-status disconnected">
+            Проверка подключения к Ollama...
+        </div>
+        
+        <div class="options-row">
+            <div class="option-group">
+                <label for="modelSelect">Модель:</label>
+                <select id="modelSelect">
+                    <option value="llama3.1:8b">llama3.1:8b</option>
+                    <option value="llama3:8b">llama3:8b</option>
+                    <option value="mistral:7b">mistral:7b</option>
+                    <option value="phi3:14b">phi3:14b</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label for="ollamaUrl">Ollama URL:</label>
+                <input type="text" id="ollamaUrl" value="http://localhost:11434">
+            </div>
+        </div>
+        
+        <textarea id="taskInput" class="task-input" placeholder="Опишите задачу для агента...
+
+Например:
+- Найди контакты типографий в Москве
+- Собери email всех IT-компаний Санкт-Петербурга
+- Найди поставщиков полиграфии в России"></textarea>
+        
+        <div>
+            <button id="planBtn" class="btn btn-secondary">Составить план</button>
+            <button id="executeBtn" class="btn btn-primary">Выполнить задачу</button>
+        </div>
+        
+        <div id="loadingDisplay" style="display: none; margin-top: 20px;">
+            <div class="spinner"></div>
+            <span id="loadingText">Обработка...</span>
+        </div>
+        
+        <div id="errorDisplay" class="error-message" style="display: none;"></div>
+        
+        <div id="planDisplay" class="plan-display" style="display: none;">
+            <h3>План выполнения:</h3>
+            <div id="planSteps"></div>
+        </div>
+        
+        <div id="resultsDisplay" class="results-display" style="display: none;"></div>
+    </div>
+    
+    <script>
+        const statusDisplay = document.getElementById('statusDisplay');
+        const taskInput = document.getElementById('taskInput');
+        const planBtn = document.getElementById('planBtn');
+        const executeBtn = document.getElementById('executeBtn');
+        const loadingDisplay = document.getElementById('loadingDisplay');
+        const loadingText = document.getElementById('loadingText');
+        const errorDisplay = document.getElementById('errorDisplay');
+        const planDisplay = document.getElementById('planDisplay');
+        const planSteps = document.getElementById('planSteps');
+        const resultsDisplay = document.getElementById('resultsDisplay');
+        
+        let currentPlan = null;
+        
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/agent-status');
+                const data = await response.json();
+                
+                if (data.available && data.connected) {
+                    statusDisplay.className = 'agent-status connected';
+                    statusDisplay.innerHTML = `✅ Подключено к Ollama. Модель: ${data.default_model || data.models[0] || 'не выбрана'}`;
+                } else {
+                    statusDisplay.className = 'agent-status disconnected';
+                    statusDisplay.innerHTML = '❌ Ollama не подключена: ' + (data.error || 'Неизвестная ошибка');
+                }
+            } catch (e) {
+                statusDisplay.className = 'agent-status disconnected';
+                statusDisplay.innerHTML = '❌ Ошибка проверки статуса';
+            }
+        }
+        
+        function showLoading(text) {
+            loadingText.textContent = text;
+            loadingDisplay.style.display = 'block';
+            errorDisplay.style.display = 'none';
+            planDisplay.style.display = 'none';
+            resultsDisplay.style.display = 'none';
+        }
+        
+        function hideLoading() {
+            loadingDisplay.style.display = 'none';
+        }
+        
+        function showError(message) {
+            hideLoading();
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+        }
+        
+        function renderPlan(plan) {
+            planSteps.innerHTML = '';
+            
+            plan.plan.forEach(step => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'plan-step';
+                stepDiv.innerHTML = `
+                    <span class="plan-step-number">${step.step_id}.</span>
+                    ${step.description}
+                    <span class="plan-step-action">${step.action}</span>
+                `;
+                planSteps.appendChild(stepDiv);
+            });
+            
+            planDisplay.style.display = 'block';
+        }
+        
+        function renderResults(results) {
+            resultsDisplay.innerHTML = '<h3>Результаты:</h3>';
+            
+            const execution = results.execution;
+            if (!execution) {
+                resultsDisplay.innerHTML += '<p>Нет результатов выполнения</p>';
+                resultsDisplay.style.display = 'block';
+                return;
+            }
+            
+            if (execution.errors && execution.errors.length > 0) {
+                resultsDisplay.innerHTML += `<div class="error-message">Ошибки: ${execution.errors.join(', ')}</div>`;
+            }
+            
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'success-message';
+            summaryDiv.innerHTML = `
+                <strong>Выполнено:</strong> ${execution.completed_steps}/${execution.total_steps} шагов<br>
+                <strong>Статус:</strong> ${execution.status}
+            `;
+            resultsDisplay.appendChild(summaryDiv);
+            
+            for (const [key, value] of Object.entries(execution.results || {})) {
+                const section = document.createElement('div');
+                section.className = 'result-section';
+                
+                let content = `<h4>${key}</h4>`;
+                
+                if (value.results) {
+                    content += `<p>Найдено результатов: ${value.results_count || value.results.length}</p>`;
+                    content += '<ul>';
+                    value.results.slice(0, 5).forEach(r => {
+                        content += `<li><a href="${r.url}" target="_blank">${r.title}</a></li>`;
+                    });
+                    content += '</ul>';
+                } else if (value.contacts) {
+                    content += `<p>Найдено контактов: ${value.count}</p>`;
+                    content += '<ul>';
+                    value.contacts.slice(0, 10).forEach(c => {
+                        content += `<li>${c.type}: ${c.value}</li>`;
+                    });
+                    content += '</ul>';
+                } else if (value.variants) {
+                    content += `<p>Варианты запроса: ${value.variants.length}</p>`;
+                    content += '<ul>';
+                    value.variants.forEach(v => {
+                        content += `<li>${v}</li>`;
+                    });
+                    content += '</ul>';
+                }
+                
+                section.innerHTML = content;
+                resultsDisplay.appendChild(section);
+            }
+            
+            resultsDisplay.style.display = 'block';
+        }
+        
+        planBtn.addEventListener('click', async () => {
+            const task = taskInput.value.trim();
+            if (!task) {
+                showError('Введите описание задачи');
+                return;
+            }
+            
+            planBtn.disabled = true;
+            showLoading('Составление плана...');
+            
+            try {
+                const response = await fetch('/api/agent-create-plan', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        task: task,
+                        model: document.getElementById('modelSelect').value,
+                        ollama_url: document.getElementById('ollamaUrl').value
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentPlan = data;
+                    renderPlan(data);
+                    hideLoading();
+                } else {
+                    showError(data.error || 'Ошибка при создании плана');
+                }
+            } catch (e) {
+                showError('Ошибка сети: ' + e.message);
+            }
+            
+            planBtn.disabled = false;
+        });
+        
+        executeBtn.addEventListener('click', async () => {
+            const task = taskInput.value.trim();
+            if (!task) {
+                showError('Введите описание задачи');
+                return;
+            }
+            
+            executeBtn.disabled = true;
+            showLoading('Выполнение задачи...');
+            
+            try {
+                const response = await fetch('/api/agent-execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        task: task,
+                        model: document.getElementById('modelSelect').value,
+                        ollama_url: document.getElementById('ollamaUrl').value,
+                        execute: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    hideLoading();
+                    renderPlan(data);
+                    renderResults(data);
+                } else {
+                    showError(data.error || 'Ошибка при выполнении задачи');
+                }
+            } catch (e) {
+                showError('Ошибка сети: ' + e.message);
+            }
+            
+            executeBtn.disabled = false;
+        });
+        
+        checkStatus();
+    </script>
+    </main>
+</div>
+</body>
+</html>
