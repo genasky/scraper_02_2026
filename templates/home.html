@@ -202,53 +202,7 @@
                     <h3>Чат с AI</h3>
                     <p>Общение с локальной моделью Ollama. Тестирование и просто чат</p>
                 </a>
-
-                <div class="dashboard-card settings-card" onclick="toggleAISettings()">
-                    <i class="fas fa-robot"></i>
-                    <h3>Настройки AI <span id="aiStatusIndicator" class="ai-status-indicator ai-status-disconnected">offline</span></h3>
-                    <p>Подключение к локальной Ollama для AI-расширения поисковых запросов</p>
-                </div>
             </div>
-
-            <section class="ai-settings-section" id="aiSettingsSection" style="display: none;">
-                <h3><i class="fas fa-robot"></i> Настройки AI-расширения запросов</h3>
-                
-                <div class="ai-settings-grid">
-                    <div class="form-group">
-                        <div class="ai-toggle-row">
-                            <input type="checkbox" id="aiEnabled">
-                            <label for="aiEnabled" style="margin: 0; cursor: pointer;">Включить AI-расширение</label>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="ollamaUrl">URL Ollama:</label>
-                        <input type="text" id="ollamaUrl" value="http://localhost:11434" placeholder="http://localhost:11434">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="aiModel">Модель:</label>
-                        <select id="aiModel">
-                            <option value="">Загрузка...</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="aiMode">Режим:</label>
-                        <select id="aiMode">
-                            <option value="both">Похожие + Расширенные</option>
-                            <option value="similar">Похожие запросы</option>
-                            <option value="expanded">Расширенные запросы</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 1rem;">
-                    <button class="btn-test-ai" onclick="testAIConnection()">
-                        <i class="fas fa-plug"></i> Проверить подключение
-                    </button>
-                </div>
-            </section>
 
             <section class="recent-activity" style="margin-top: 3rem;">
                 <h2><i class="fas fa-clock"></i> Последняя активность</h2>
@@ -267,132 +221,10 @@
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
-        // AI Settings Management
-        const AI_SETTINGS_KEY = 'aiSearchSettings';
-        
-        function loadAISettings() {
-            const aiEnabledEl = document.getElementById('aiEnabled');
-            const ollamaUrlEl = document.getElementById('ollamaUrl');
-            const aiModelEl = document.getElementById('aiModel');
-            const aiModeEl = document.getElementById('aiMode');
-            const autoStartEl = document.getElementById('autoStartOllama');
-            const autoStopEl = document.getElementById('autoStopOllama');
-            
-            const saved = localStorage.getItem(AI_SETTINGS_KEY);
-            if (saved && aiEnabledEl) {
-                const settings = JSON.parse(saved);
-                aiEnabledEl.checked = settings.enabled || false;
-                if (ollamaUrlEl) ollamaUrlEl.value = settings.ollamaUrl || 'http://localhost:11434';
-                if (aiModelEl) aiModelEl.value = settings.model || '';
-                if (aiModeEl) aiModeEl.value = settings.mode || 'both';
-                if (autoStartEl) autoStartEl.checked = settings.autoStart !== false;
-                if (autoStopEl) autoStopEl.checked = settings.autoStop !== false;
-            }
-        }
-        
-        function saveAISettings() {
-            const aiEnabledEl = document.getElementById('aiEnabled');
-            const ollamaUrlEl = document.getElementById('ollamaUrl');
-            const aiModelEl = document.getElementById('aiModel');
-            const aiModeEl = document.getElementById('aiMode');
-            const autoStartEl = document.getElementById('autoStartOllama');
-            const autoStopEl = document.getElementById('autoStopOllama');
-            
-            const settings = {
-                enabled: aiEnabledEl ? aiEnabledEl.checked : false,
-                ollamaUrl: ollamaUrlEl ? ollamaUrlEl.value : 'http://localhost:11434',
-                model: aiModelEl ? aiModelEl.value : 'llama3.1:8b',
-                mode: aiModeEl ? aiModeEl.value : 'both',
-                autoStart: autoStartEl ? autoStartEl.checked : true,
-                autoStop: autoStopEl ? autoStopEl.checked : true
-            };
-            localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
-        }
-        
-        function toggleAISettings() {
-            const section = document.getElementById('aiSettingsSection');
-            section.style.display = section.style.display === 'none' ? 'block' : 'none';
-        }
-        
-        function updateAIStatus(connected, models, error) {
-            const indicator = document.getElementById('aiStatusIndicator');
-            if (connected) {
-                indicator.className = 'ai-status-indicator ai-status-connected';
-                indicator.innerHTML = '<i class="fas fa-check"></i> online';
-                
-                const modelSelect = document.getElementById('aiModel');
-                modelSelect.innerHTML = '';
-                models.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m;
-                    opt.textContent = m;
-                    modelSelect.appendChild(opt);
-                });
-                
-                const saved = localStorage.getItem(AI_SETTINGS_KEY);
-                if (saved) {
-                    const settings = JSON.parse(saved);
-                    if (settings.model && models.includes(settings.model)) {
-                        modelSelect.value = settings.model;
-                    }
-                }
-            } else {
-                indicator.className = 'ai-status-indicator ai-status-disconnected';
-                indicator.innerHTML = '<i class="fas fa-times"></i> offline';
-                showToast(error || 'Ollama не подключена', 'error');
-            }
-        }
-        
-        async function testAIConnection() {
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Проверка...';
-            
-            const indicator = document.getElementById('aiStatusIndicator');
-            indicator.className = 'ai-status-indicator ai-status-checking';
-            indicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> checking...';
-            
-            try {
-                const response = await fetch('/api/ai-status');
-                const data = await response.json();
-                
-                if (data.connected) {
-                    updateAIStatus(true, data.models);
-                    showToast('Подключено! Моделей: ' + data.models.length, 'success');
-                } else {
-                    updateAIStatus(false, [], data.error);
-                }
-            } catch (e) {
-                updateAIStatus(false, [], e.message);
-            }
-            
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-plug"></i> Проверить подключение';
-        }
-        
-        // Event listeners
-        const aiEnabledEl = document.getElementById('aiEnabled');
-        const ollamaUrlEl = document.getElementById('ollamaUrl');
-        const aiModelEl = document.getElementById('aiModel');
-        const aiModeEl = document.getElementById('aiMode');
-        const autoStartEl = document.getElementById('autoStartOllama');
-        const autoStopEl = document.getElementById('autoStopOllama');
-        
-        if (aiEnabledEl) aiEnabledEl.addEventListener('change', saveAISettings);
-        if (ollamaUrlEl) ollamaUrlEl.addEventListener('change', saveAISettings);
-        if (aiModelEl) aiModelEl.addEventListener('change', saveAISettings);
-        if (aiModeEl) aiModeEl.addEventListener('change', saveAISettings);
-        if (autoStartEl) autoStartEl.addEventListener('change', saveAISettings);
-        if (autoStopEl) autoStopEl.addEventListener('change', saveAISettings);
-        
         // Init
         document.addEventListener('DOMContentLoaded', () => {
-            loadAISettings();
             document.getElementById('debugInfo').style.display = 'block';
             document.getElementById('debugTime').textContent = new Date().toLocaleString();
-            
-            // Auto-check connection
-            testAIConnection();
         });
     </script>
 </body>

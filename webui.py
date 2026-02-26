@@ -45,6 +45,50 @@ FAKE_EMAIL_DOMAINS = [
     'fakeemail', 'noemail', 'nomail', 'notvalid'
 ]
 
+def is_valid_phone(phone: str) -> bool:
+    """Проверяет, является ли строка валидным номером телефона"""
+    if not phone:
+        return False
+    
+    original = phone
+    # Убираем все пробелы и дефисы
+    digits = re.sub(r'[\s\-\(\)\.\+]', '', phone)
+    
+    # Должны быть только цифры и возможно один +
+    if not re.match(r'^\+?\d+$', digits):
+        return False
+    
+    # Убираем ведущий +
+    digits_only = digits.lstrip('+')
+    
+    # Длина должна быть 10-15 цифр
+    if len(digits_only) < 10 or len(digits_only) > 15:
+        return False
+    
+    # ПРИНУДИТЕЛЬНО: должны быть либо + в начале, либо 8 (российский формат)
+    if not phone.startswith('+') and not digits.startswith('8'):
+        # Без + можно принимать только российские номера с 8
+        return False
+    
+    # Фильтруем годы (2020-2029)
+    if re.match(r'^20[2-9]\d$', digits_only):
+        return False
+    
+    # Фильтруем последовательности типа 111111, 123456 и т.д.
+    if len(set(digits_only)) <= 2 and len(digits_only) > 4:
+        return False
+    
+    # Фильтруем числа начинающиеся на 0 (обычно не телефоны)
+    if digits_only.startswith('0'):
+        return False
+    
+    # Фильтруем номера типа 99999, 88888 (не бывает)
+    if len(digits_only) >= 4:
+        if len(set(digits_only[:4])) == 1:
+            return False
+    
+    return True
+
 # Фильтры для нерелевантных сайтов
 BLOCKED_DOMAINS = [
     'studiofaca.com', 'studiofaca.org', 'studiofaca.net',
@@ -109,7 +153,27 @@ def is_valid_email(email: str) -> bool:
     if not email or '@' not in email:
         return False
     
+    # Убираем пробелы и мусор в конце
+    email = email.strip()
+    
+    # Проверяем что после @ есть точка
+    if '.' not in email.split('@')[1]:
+        return False
+    
+    # Проверяем что email не содержит пробелов
+    if ' ' in email:
+        return False
+    
+    # Проверяем что нет мусора типа "what", "comwhat" в конце
     domain = email.split('@')[1].lower()
+    if domain.endswith('what') or 'what' in domain or domain.endswith('comwhat'):
+        return False
+    
+    local_part = email.split('@')[0]
+    
+    # Email не должен начинаться с цифры
+    if local_part and local_part[0].isdigit():
+        return False
     
     # Проверка на временные email сервисы
     if any(fake in domain for fake in FAKE_EMAIL_DOMAINS):
@@ -642,9 +706,11 @@ def _parse_json_ld(soup, source_url, found_contacts):
                         if isinstance(same_as, list):
                             for link in same_as:
                                 link_str = str(link).lower()
+                                # Извлекаем username из URL
                                 for social in ['instagram', 'facebook', 'linkedin', 'twitter', 'youtube', 'tiktok']:
                                     if social in link_str:
-                                        found_contacts.add(('social', f'{social}: {link}', source_url))
+                                        # Сохраняем полный URL
+                                        found_contacts.add(('social', link, source_url))
                     
                     # Рекурсивный обход
                     for key, value in obj.items():
@@ -668,46 +734,22 @@ def _parse_links(soup, source_url, found_contacts):
         elif href.startswith('tel:'):
             phone = href.replace('tel:', '').strip()
             found_contacts.add(('phone', phone, source_url))
-        # Поиск социальных сетей в href
+        # Поиск социальных сетей в href - сохраняем полную ссылку
         elif any(social in href.lower() for social in ['instagram.com', 'facebook.com', 'linkedin.com', 'twitter.com', 'x.com', 'youtube.com', 'tiktok.com']):
-            if 'instagram.com' in href.lower():
-                match = re.search(r'instagram\.com/([\w\.]+)', href.lower())
-                if match:
-                    found_contacts.add(('social', f'instagram: {match.group(1)}', source_url))
-            elif 'facebook.com' in href.lower() or 'fb.com' in href.lower():
-                match = re.search(r'(?:facebook\.com|fb\.com)/([\w\.]+)', href.lower())
-                if match:
-                    found_contacts.add(('social', f'facebook: {match.group(1)}', source_url))
-            elif 'linkedin.com' in href.lower():
-                match = re.search(r'linkedin\.com/(?:in/|company/)([\w\-]+)', href.lower())
-                if match:
-                    found_contacts.add(('social', f'linkedin: {match.group(1)}', source_url))
-            elif 'twitter.com' in href.lower() or 'x.com' in href.lower():
-                match = re.search(r'(?:twitter\.com|x\.com)/([\w\.]+)', href.lower())
-                if match:
-                    found_contacts.add(('social', f'twitter: {match.group(1)}', source_url))
-            elif 'youtube.com' in href.lower():
-                match = re.search(r'youtube\.com/(?:channel/|c/|user/|@)([\w\-]+)', href.lower())
-                if match:
-                    found_contacts.add(('social', f'youtube: {match.group(1)}', source_url))
-            elif 'tiktok.com' in href.lower():
-                match = re.search(r'tiktok\.com/@([\w\.]+)', href.lower())
-                if match:
-                    found_contacts.add(('social', f'tiktok: {match.group(1)}', source_url))
-        # Поиск мессенджеров в href
+            # Нормализуем URL
+            full_url = href
+            if not full_url.startswith('http'):
+                if full_url.startswith('//'):
+                    full_url = 'https:' + full_url
+                else:
+                    full_url = 'https://' + full_url
+            found_contacts.add(('social', full_url, source_url))
+        # Поиск мессенджеров в href - сохраняем полную ссылку
         elif any(messenger in href.lower() for messenger in ['telegram.me', 't.me', 'whatsapp.com', 'wa.me', 'viber.com']):
-            if 'telegram.me' in href.lower() or 't.me' in href.lower():
-                match = re.search(r'(?:telegram\.me|t\.me)/([\w\.]+)', href.lower())
-                if match:
-                    found_contacts.add(('messenger', f'telegram: {match.group(1)}', source_url))
-            elif 'whatsapp.com' in href.lower() or 'wa.me' in href.lower():
-                match = re.search(r'(?:whatsapp\.com|wa\.me)/([\+\d]+)', href.lower())
-                if match:
-                    found_contacts.add(('messenger', f'whatsapp: {match.group(1)}', source_url))
-            elif 'viber.com' in href.lower():
-                match = re.search(r'viber\.com/([\+\d]+)', href.lower())
-                if match:
-                    found_contacts.add(('messenger', f'viber: {match.group(1)}', source_url))
+            full_url = href
+            if not full_url.startswith('http') and not full_url.startswith('//'):
+                full_url = 'https://' + full_url
+            found_contacts.add(('messenger', full_url, source_url))
 
 def _parse_regex(soup, source_url, found_contacts):
     text = soup.get_text()
@@ -726,38 +768,52 @@ def _parse_regex(soup, source_url, found_contacts):
         r'\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}',  # (XXX) XXX-XX-XX
         r'\+\d{1,3}\s?\d{3}[-\s]?\d{3}[-\s]?\d{4}',  # +X XXX-XXX-XXXX
         r'\d{3}[-\s]?\d{3}[-\s]?\d{4}',  # XXX-XXX-XXXX
-        r'\+\d{7,15}',  # Просто + с 7-15 цифрами
+        r'\+\d{10,15}',  # + с 10-15 цифрами (российские номера)
     ]
     
     found_phones = set()  # Для избежания дубликатов
     for pattern in phone_patterns:
         for phone_match in re.finditer(pattern, text):
             phone = phone_match.group(0).strip()
-            # Очищаем от лишних символов
-            phone_clean = re.sub(r'[\s\-\(\)]', '', phone)
-            # Проверяем, что это действительно номер телефона
-            digits_only = re.sub(r'\D', '', phone_clean)
-            if 7 <= len(digits_only) <= 15:
-                # Фильтруем ложные срабатывания (годы, ID и т.д.)
-                if not re.match(r'^20\d{2}$', digits_only) and not re.match(r'^\d{4,6}$', digits_only):
-                    if phone_clean not in found_phones:
-                        found_phones.add(phone_clean)
-                        found_contacts.add(('phone', phone_clean, source_url))  # Сохраняем очищенный номер
+            # Проверяем что это валидный номер телефона
+            if is_valid_phone(phone):
+                # Очищаем от лишних символов
+                phone_clean = re.sub(r'[\s\-\(\)]', '', phone)
+                if phone_clean not in found_phones:
+                    found_phones.add(phone_clean)
+                    found_contacts.add(('phone', phone_clean, source_url))
 
     # Поиск социальных сетей
     social_patterns = {
-        'instagram': r'(?:instagram\.com/|@)([\w\.]{3,30})(?:[/?]|$)',
-        'facebook': r'(?:facebook\.com/|fb\.com/|@)([\w\.]{3,50})(?:[/?]|$)',
-        'linkedin': r'(?:linkedin\.com/(?:in/|company/))([\w\-]{3,50})(?:[/?]|$)',
-        'twitter': r'(?:twitter\.com/|x\.com/|@)([\w\.]{3,30})(?:[/?]|$)',
-        'youtube': r'(?:youtube\.com/(?:channel/|c/|user/|@))([\w\-]{3,50})(?:[/?]|$)',
-        'tiktok': r'(?:tiktok\.com/@)([\w\.]{3,30})(?:[/?]|$)'
+        'instagram': r'instagram\.com/([a-zA-Z0-9_.]+)(?:[/?#]|$)',
+        'facebook': r'(?:facebook\.com|fb\.com)/([a-zA-Z0-9_.]+)(?:[/?#]|$)',
+        'linkedin': r'linkedin\.com/(?:in|company)/([a-zA-Z0-9_\-]+)(?:[/?#]|$)',
+        'twitter': r'(?:twitter\.com|x\.com)/([a-zA-Z0-9_.]+)(?:[/?#]|$)',
+        'youtube': r'youtube\.com/(?:channel/|c/|user/|@)([a-zA-Z0-9_\-]+)(?:[/?#]|$)',
+        'tiktok': r'tiktok\.com/@([a-zA-Z0-9_.]+)(?:[/?#]|$)'
     }
     
     for social_type, pattern in social_patterns.items():
         for match in re.finditer(pattern, text, re.IGNORECASE):
             social_handle = match.group(1)
-            found_contacts.add(('social', f'{social_type}: {social_handle.lower()}', source_url))  # Нормализуем
+            if 'http' not in social_handle and 'www' not in social_handle and len(social_handle) < 50:
+                found_contacts.add(('social', f'{social_type}: {social_handle.lower()}', source_url))
+    
+    # Поиск адресов
+    address_patterns = [
+        r'\d{5}\s+[A-Za-zÀ-ÿ\u0080-\uFFFF][^,]{2,40},\s*[A-Za-zÀ-ÿ\u0080-\uFFFF]+',  # Индекс Город, Страна
+        r'\d+\s+[A-Za-zÀ-ÿ\u0080-\uFFFF][^,]{2,50},\s+\d{5}',  # Улица, индекс
+    ]
+    
+    address_exclude_words = ['files', 'attached', 'format', 'doc', 'pdf', 'mb', 'click', 'button', 'submit', 'cookie', 'policy', 'privacy', 'development', 'center', 'representative', 'office']
+    
+    for pattern in address_patterns:
+        for match in re.finditer(pattern, text):
+            address = match.group(0).strip()
+            # Проверяем что это похоже на адрес
+            if 10 <= len(address) <= 100:
+                if not any(word in address.lower() for word in address_exclude_words):
+                    found_contacts.add(('address', address, source_url))
 
     # Поиск мессенджеров
     # Telegram
@@ -868,66 +924,45 @@ def _parse_page_with_selectolax(html_content, url, found_contacts):
         
         # Парсим ссылки
         for a in tree.css('a[href]'):
-            href = a.attributes.get('href', '')
+            href = a.attributes.get('href', '').strip()
             if href.startswith('mailto:'):
                 email = href.replace('mailto:', '').strip()
-                found_contacts.add(('email', email.lower(), url))
+                if email and '@' in email:
+                    found_contacts.add(('email', email.lower(), url))
             elif href.startswith('tel:'):
                 phone = href.replace('tel:', '').strip()
-                found_contacts.add(('phone', phone, url))
-            # Поиск социальных сетей в href
+                if phone and len(phone) >= 7:
+                    found_contacts.add(('phone', phone, url))
+            # Поиск социальных сетей в href - сохраняем полную ссылку
             elif any(social in href.lower() for social in ['instagram.com', 'facebook.com', 'linkedin.com', 'twitter.com', 'x.com', 'youtube.com', 'tiktok.com']):
-                if 'instagram.com' in href.lower():
-                    match = re.search(r'instagram\.com/([\w\.]+)', href.lower())
-                    if match:
-                        found_contacts.add(('social', f'instagram: {match.group(1).lower()}', url))
-                elif 'facebook.com' in href.lower() or 'fb.com' in href.lower():
-                    match = re.search(r'(?:facebook\.com|fb\.com)/([\w\.]+)', href.lower())
-                    if match:
-                        found_contacts.add(('social', f'facebook: {match.group(1).lower()}', url))
-                elif 'linkedin.com' in href.lower():
-                    match = re.search(r'linkedin\.com/(?:in/|company/)([\w\-]+)', href.lower())
-                    if match:
-                        found_contacts.add(('social', f'linkedin: {match.group(1).lower()}', url))
-                elif 'twitter.com' in href.lower() or 'x.com' in href.lower():
-                    match = re.search(r'(?:twitter\.com|x\.com)/([\w\.]+)', href.lower())
-                    if match:
-                        found_contacts.add(('social', f'twitter: {match.group(1).lower()}', url))
-                elif 'youtube.com' in href.lower():
-                    match = re.search(r'youtube\.com/(?:channel/|c/|user/|@)([\w\-]+)', href.lower())
-                    if match:
-                        found_contacts.add(('social', f'youtube: {match.group(1).lower()}', url))
-                elif 'tiktok.com' in href.lower():
-                    match = re.search(r'tiktok\.com/@([\w\.]+)', href.lower())
-                    if match:
-                        found_contacts.add(('social', f'tiktok: {match.group(1).lower()}', url))
-            # Поиск мессенджеров в href
+                # Нормализуем URL - добавляем https если нет
+                full_url = href
+                if not full_url.startswith('http'):
+                    if full_url.startswith('//'):
+                        full_url = 'https:' + full_url
+                    else:
+                        full_url = 'https://' + full_url
+                found_contacts.add(('social', full_url, url))
+            # Поиск мессенджеров в href - сохраняем полную ссылку
             elif any(messenger in href.lower() for messenger in ['telegram.me', 't.me', 'whatsapp.com', 'wa.me', 'viber.com']):
-                if 'telegram.me' in href.lower() or 't.me' in href.lower():
-                    match = re.search(r'(?:telegram\.me|t\.me)/([\w\.]+)', href.lower())
-                    if match:
-                        found_contacts.add(('messenger', f'telegram: {match.group(1).lower()}', url))
-                elif 'whatsapp.com' in href.lower() or 'wa.me' in href.lower():
-                    match = re.search(r'(?:whatsapp\.com|wa\.me)/([\+\d]+)', href.lower())
-                    if match:
-                        clean_number = re.sub(r'[^\d]', '', match.group(1))
-                        found_contacts.add(('messenger', f'whatsapp: +{clean_number}', url))
-                elif 'viber.com' in href.lower():
-                    match = re.search(r'viber\.com/([\+\d]+)', href.lower())
-                    if match:
-                        clean_number = re.sub(r'[^\d]', '', match.group(1))
-                        found_contacts.add(('messenger', f'viber: +{clean_number}', url))
+                # Нормализуем URL
+                full_url = href
+                if not full_url.startswith('http') and not full_url.startswith('//'):
+                    full_url = 'https://' + full_url
+                found_contacts.add(('messenger', full_url, url))
         
         # Парсим текст с улучшенными паттернами
         text = tree.body.text() if tree.body else ''
         
-        # Улучшенный поиск email
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        # Улучшенный поиск email - более строгий паттерн
+        email_pattern = r'(?<![.\d])[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}(?![.\d])'
         for email in re.finditer(email_pattern, text):
             email_clean = email.group(0).strip()
             # Фильтруем ложные срабатывания
             if not any(x in email_clean.lower() for x in ['example.com', 'test.com', 'domain.com', 'email.com', 'yourdomain.com']):
-                found_contacts.add(('email', email_clean.lower(), url))  # Нормализуем email для дедупликации
+                # Проверяем что email не начинается с цифры
+                if not email_clean[0].isdigit():
+                    found_contacts.add(('email', email_clean.lower(), url))
         
         # Улучшенный поиск телефонов - более строгие паттерны
         phone_patterns = [
@@ -935,38 +970,52 @@ def _parse_page_with_selectolax(html_content, url, found_contacts):
             r'\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2}',  # (XXX) XXX-XX-XX
             r'\+\d{1,3}\s?\d{3}[-\s]?\d{3}[-\s]?\d{4}',  # +X XXX-XXX-XXXX
             r'\d{3}[-\s]?\d{3}[-\s]?\d{4}',  # XXX-XXX-XXXX
-            r'\+\d{7,15}',  # Просто + с 7-15 цифрами
+            r'\+\d{10,15}',  # + с 10-15 цифрами
         ]
         
         found_phones = set()  # Для избежания дубликатов
         for pattern in phone_patterns:
             for phone_match in re.finditer(pattern, text):
                 phone = phone_match.group(0).strip()
-                # Очищаем от лишних символов
-                phone_clean = re.sub(r'[\s\-\(\)]', '', phone)
-                # Проверяем, что это действительно номер телефона
-                digits_only = re.sub(r'\D', '', phone_clean)
-                if 7 <= len(digits_only) <= 15:
-                    # Фильтруем ложные срабатывания (годы, ID и т.д.)
-                    if not re.match(r'^20\d{2}$', digits_only) and not re.match(r'^\d{4,6}$', digits_only):
-                        if phone_clean not in found_phones:
-                            found_phones.add(phone_clean)
-                            found_contacts.add(('phone', phone_clean, url))  # Сохраняем очищенный номер
+                # Проверяем что это валидный номер телефона
+                if is_valid_phone(phone):
+                    # Очищаем от лишних символов
+                    phone_clean = re.sub(r'[\s\-\(\)]', '', phone)
+                    if phone_clean not in found_phones:
+                        found_phones.add(phone_clean)
+                        found_contacts.add(('phone', phone_clean, url))
 
-        # Поиск социальных сетей
-        social_patterns = {
-            'instagram': r'(?:instagram\.com/|@)([\w\.]{3,30})(?:[/?]|$)',
-            'facebook': r'(?:facebook\.com/|fb\.com/|@)([\w\.]{3,50})(?:[/?]|$)',
-            'linkedin': r'(?:linkedin\.com/(?:in/|company/))([\w\-]{3,50})(?:[/?]|$)',
-            'twitter': r'(?:twitter\.com/|x\.com/|@)([\w\.]{3,30})(?:[/?]|$)',
-            'youtube': r'(?:youtube\.com/(?:channel/|c/|user/|@))([\w\-]{3,50})(?:[/?]|$)',
-            'tiktok': r'(?:tiktok\.com/@)([\w\.]{3,30})(?:[/?]|$)'
-        }
+        # Поиск социальных сетей - ищем полные URL в тексте
+        social_url_patterns = [
+            r'https?://(?:www\.)?instagram\.com/[^\s<>"\'()]+',
+            r'https?://(?:www\.)?facebook\.com/[^\s<>"\'()]+',
+            r'https?://(?:www\.)?linkedin\.com/[^\s<>"\'()]+',
+            r'https?://(?:www\.)?twitter\.com/[^\s<>"\'()]+',
+            r'https?://(?:www\.)?x\.com/[^\s<>"\'()]+',
+            r'https?://(?:www\.)?youtube\.com/[^\s<>"\'()]+',
+            r'https?://(?:www\.)?tiktok\.com/[^\s<>"\'()]+',
+        ]
         
-        for social_type, pattern in social_patterns.items():
+        for pattern in social_url_patterns:
             for match in re.finditer(pattern, text, re.IGNORECASE):
-                social_handle = match.group(1)
-                found_contacts.add(('social', f'{social_type}: {social_handle}', url))
+                full_url = match.group(0).strip()
+                if len(full_url) > 10 and len(full_url) < 100:
+                    found_contacts.add(('social', full_url, url))
+
+        # Поиск адресов
+        address_patterns = [
+            r'\d{5}\s+[A-Za-zÀ-ÿ\u0080-\uFFFF][^,]{2,40},\s*[A-Za-zÀ-ÿ\u0080-\uFFFF]+',
+            r'\d+\s+[A-Za-zÀ-ÿ\u0080-\uFFFF][^,]{2,50},\s+\d{5}',
+        ]
+        
+        address_exclude_words = ['files', 'attached', 'format', 'doc', 'pdf', 'mb', 'click', 'button', 'submit', 'cookie', 'policy', 'privacy', 'development', 'center', 'representative', 'office']
+        
+        for pattern in address_patterns:
+            for match in re.finditer(pattern, text):
+                address = match.group(0).strip()
+                if 15 <= len(address) <= 150:
+                    if not any(word in address.lower() for word in address_exclude_words):
+                        found_contacts.add(('address', address, url))
 
         # Поиск мессенджеров
         # Telegram
@@ -1231,32 +1280,33 @@ def parse_contacts_endpoint():
                 except Exception as e:
                     print(f"Ошибка при извлечении навигационных ссылок: {e}")
     
-    # ШАГ 2: Если быстрым парсингом ничего не найдено, используем Playwright
-    if not found_contacts:
-        print("\n=== ШАГ 2: Парсинг с Playwright ===")
-        
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+    # ШАГ 2: Всегда используем Playwright для получения динамического контента
+    # Это позволяет получить контакты загружаемые через JavaScript
+    print("\n=== ШАГ 2: Парсинг с Playwright (для JavaScript контента) ===")
+    
+    for url in urls_to_process[:5]:  # Ограничиваем чтобы не было слишком долго
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                
+                print(f"--- Playwright парсинг: {url} ---")
+                page.goto(url, wait_until='networkidle', timeout=20000)
+                
+                page.wait_for_timeout(1500)
 
-            for url in urls_to_process:
-                try:
-                    print(f"--- Playwright парсинг: {url} ---")
-                    page.goto(url, wait_until='networkidle', timeout=20000)
-                    
-                    page.wait_for_timeout(1500)
+                content = page.content()
+                soup = BeautifulSoup(content, 'html.parser')
 
-                    content = page.content()
-                    soup = BeautifulSoup(content, 'html.parser')
-
-                    parse_page_for_contacts(soup, url, found_contacts)
-                    
-                    if found_contacts:
-                        print(f"Найдено контактов: {len(found_contacts)}, продолжаем для проверки других страниц...")
-
-                except Exception as e:
-                    print(f"Error processing {url}: {e}")
-                    continue
+                parse_page_for_contacts(soup, url, found_contacts)
+                
+                print(f"Найдено контактов после Playwright: {len(found_contacts)}")
+                
+                browser.close()
+                
+        except Exception as e:
+            print(f"Error processing {url}: {e}")
+            continue
 
             # Если контакты все еще не найдены, ищем в навигационных ссылках
             if not found_contacts and urls_to_process:

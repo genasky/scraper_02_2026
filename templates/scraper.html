@@ -182,6 +182,84 @@
         .btn-use-variant:hover {
             background: #4338ca;
         }
+        
+        .ai-settings-bar {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        
+        .ai-settings-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            background: #f9fafb;
+            user-select: none;
+        }
+        
+        .ai-settings-toggle:hover {
+            background: #f3f4f6;
+        }
+        
+        .ai-settings-toggle i {
+            color: #4f46e5;
+        }
+        
+        .ai-settings-toggle span:first-of-type {
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        .ai-status {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 10px;
+            background: #ef4444;
+            color: white;
+        }
+        
+        .ai-status.online {
+            background: #10b981;
+        }
+        
+        .ai-settings-content {
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+            background: #fafafa;
+        }
+        
+        .ai-settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+        
+        .ai-settings-grid .form-group {
+            margin: 0;
+        }
+        
+        .ai-settings-grid select,
+        .ai-settings-grid input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .btn-test {
+            padding: 0.5rem 1rem;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .btn-test:hover {
+            background: #4338ca;
+        }
     </style>
 </head>
 <body>
@@ -200,6 +278,43 @@
         </nav>
 
         <main class="main-content">
+            <section class="ai-settings-bar">
+                <div class="ai-settings-toggle" onclick="toggleAISettings()">
+                    <i class="fas fa-robot"></i>
+                    <span>Настройки AI</span>
+                    <span class="ai-status" id="aiStatusBadge">offline</span>
+                    <i class="fas fa-chevron-down" id="aiSettingsArrow"></i>
+                </div>
+                <div class="ai-settings-content" id="aiSettingsContent" style="display: none;">
+                    <div class="ai-settings-grid">
+                        <div class="form-group">
+                            <label for="aiEnabled">Включить AI:</label>
+                            <input type="checkbox" id="aiEnabled">
+                        </div>
+                        <div class="form-group">
+                            <label for="aiModel">Модель:</label>
+                            <select id="aiModel">
+                                <option value="llama3.1:8b">llama3.1:8b</option>
+                                <option value="gemma3:4b">gemma3:4b</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aiMode">Режим:</label>
+                            <select id="aiMode">
+                                <option value="both">Альтернативные + Расширенные</option>
+                                <option value="similar">Только альтернативные</option>
+                                <option value="expanded">Только расширенные</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button type="button" class="btn-test" onclick="testAIConnection()">
+                                <i class="fas fa-plug"></i> Проверить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="search-section">
                 <div class="search-card">
                     <h2><i class="fas fa-search"></i> Поиск</h2>
@@ -446,7 +561,128 @@
         
         const AI_SETTINGS_KEY = 'aiSearchSettings';
         
+        function loadAISettings() {
+            const saved = localStorage.getItem(AI_SETTINGS_KEY);
+            const aiEnabledEl = document.getElementById('aiEnabled');
+            const aiModelEl = document.getElementById('aiModel');
+            const aiModeEl = document.getElementById('aiMode');
+            
+            if (saved) {
+                const settings = JSON.parse(saved);
+                if (aiEnabledEl) aiEnabledEl.checked = settings.enabled || false;
+                if (aiModelEl) aiModelEl.value = settings.model || 'llama3.1:8b';
+                if (aiModeEl) aiModeEl.value = settings.mode || 'both';
+            }
+            
+            // Also check AI status on load
+            checkAIStatus();
+        }
+        
+        function saveAISettings() {
+            const aiEnabledEl = document.getElementById('aiEnabled');
+            const aiModelEl = document.getElementById('aiModel');
+            const aiModeEl = document.getElementById('aiMode');
+            
+            const settings = {
+                enabled: aiEnabledEl ? aiEnabledEl.checked : false,
+                ollamaUrl: 'http://localhost:11434',
+                model: aiModelEl ? aiModelEl.value : 'llama3.1:8b',
+                mode: aiModeEl ? aiModeEl.value : 'both',
+                autoStart: true,
+                autoStop: true
+            };
+            localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(settings));
+            
+            // Update button state
+            initAIOnScraper();
+        }
+        
+        function toggleAISettings() {
+            const content = document.getElementById('aiSettingsContent');
+            const arrow = document.getElementById('aiSettingsArrow');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                arrow.classList.remove('fa-chevron-down');
+                arrow.classList.add('fa-chevron-up');
+            } else {
+                content.style.display = 'none';
+                arrow.classList.remove('fa-chevron-up');
+                arrow.classList.add('fa-chevron-down');
+            }
+        }
+        
+        async function checkAIStatus() {
+            const statusBadge = document.getElementById('aiStatusBadge');
+            const btnAI = document.getElementById('btnAI');
+            
+            try {
+                const response = await fetch('/api/ai-status');
+                const data = await response.json();
+                
+                if (data.connected) {
+                    if (statusBadge) {
+                        statusBadge.textContent = 'online';
+                        statusBadge.classList.add('online');
+                    }
+                    if (btnAI) {
+                        btnAI.disabled = false;
+                    }
+                    
+                    // Update model dropdown if needed
+                    const aiModelEl = document.getElementById('aiModel');
+                    if (aiModelEl && data.models && data.models.length > 0) {
+                        const currentVal = aiModelEl.value;
+                        aiModelEl.innerHTML = '';
+                        data.models.forEach(m => {
+                            const opt = document.createElement('option');
+                            opt.value = m;
+                            opt.textContent = m;
+                            aiModelEl.appendChild(opt);
+                        });
+                        if (data.models.includes(currentVal)) {
+                            aiModelEl.value = currentVal;
+                        }
+                    }
+                } else {
+                    if (statusBadge) {
+                        statusBadge.textContent = 'offline';
+                        statusBadge.classList.remove('online');
+                    }
+                    if (btnAI) {
+                        btnAI.disabled = true;
+                    }
+                }
+            } catch (e) {
+                if (statusBadge) {
+                    statusBadge.textContent = 'error';
+                    statusBadge.classList.remove('online');
+                }
+            }
+        }
+        
+        async function testAIConnection() {
+            await checkAIStatus();
+            showToast('Проверка подключения завершена', 'info');
+        }
+        
         function getAISettings() {
+            // First try to get from page elements
+            const aiEnabledEl = document.getElementById('aiEnabled');
+            const aiModelEl = document.getElementById('aiModel');
+            const aiModeEl = document.getElementById('aiMode');
+            
+            if (aiEnabledEl && aiEnabledEl.checked) {
+                return {
+                    enabled: true,
+                    ollamaUrl: 'http://localhost:11434',
+                    model: aiModelEl ? aiModelEl.value : 'llama3.1:8b',
+                    mode: aiModeEl ? aiModeEl.value : 'both',
+                    autoStart: true,
+                    autoStop: true
+                };
+            }
+            
+            // Fallback to localStorage
             const saved = localStorage.getItem(AI_SETTINGS_KEY);
             if (saved) {
                 const settings = JSON.parse(saved);
@@ -696,7 +932,17 @@
         
         // Run on page load
         document.addEventListener('DOMContentLoaded', function() {
+            loadAISettings();
             initAIOnScraper();
+            
+            // Add event listeners for AI settings
+            const aiEnabledEl = document.getElementById('aiEnabled');
+            const aiModelEl = document.getElementById('aiModel');
+            const aiModeEl = document.getElementById('aiMode');
+            
+            if (aiEnabledEl) aiEnabledEl.addEventListener('change', saveAISettings);
+            if (aiModelEl) aiModelEl.addEventListener('change', saveAISettings);
+            if (aiModeEl) aiModeEl.addEventListener('change', saveAISettings);
         });
     </script>
 </body>

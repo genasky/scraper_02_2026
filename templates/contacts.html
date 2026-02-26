@@ -70,10 +70,53 @@
             word-break: break-all;
         }
         
+        .contact-value a.contact-link {
+            color: #4f46e5;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .contact-value a.contact-link:hover {
+            text-decoration: underline;
+            color: #4338ca;
+        }
+        
         .contact-source {
             font-size: 0.875rem;
             color: #6b7280;
             margin-top: 0.5rem;
+        }
+        
+        .contact-group {
+            margin-bottom: 1.5rem;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .contact-group-title {
+            background: #4f46e5;
+            color: white;
+            padding: 0.75rem 1rem;
+            margin: 0;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .contact-group-items {
+            padding: 0.5rem;
+        }
+        
+        .contact-group-items .contact-item {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .contact-group-items .contact-item:last-child {
+            border-bottom: none;
         }
         
         .loading-contacts {
@@ -320,16 +363,119 @@
             if (contacts.length === 0) {
                 results.innerHTML = '<p style="color: #6b7280; text-align: center;">Контакты не найдены</p>';
             } else {
-                results.innerHTML = contacts.map(contact => `
-                    <div class="contact-item">
-                        <div class="contact-type">
-                            <i class="fas fa-${getContactIcon(contact.type)}"></i>
-                            ${contact.type.toUpperCase()}
-                        </div>
-                        <div class="contact-value">${contact.value}</div>
-                        <div class="contact-source">Источник: ${contact.source}</div>
-                    </div>
-                `).join('');
+                // Группировка контактов по типу
+                const grouped = {};
+                const typeOrder = ['phone', 'email', 'social', 'messenger', 'address'];
+                
+                contacts.forEach(contact => {
+                    const type = contact.type;
+                    if (!grouped[type]) {
+                        grouped[type] = [];
+                    }
+                    grouped[type].push(contact);
+                });
+                
+                const typeLabels = {
+                    'phone': 'Телефоны',
+                    'email': 'Email',
+                    'social': 'Социальные сети',
+                    'messenger': 'Мессенджеры',
+                    'address': 'Адреса'
+                };
+                
+                const typeIcons = {
+                    'phone': 'phone',
+                    'email': 'envelope',
+                    'social': 'users',
+                    'messenger': 'paper-plane',
+                    'address': 'map-marker-alt'
+                };
+                
+                let html = '';
+                
+                typeOrder.forEach(type => {
+                    if (grouped[type] && grouped[type].length > 0) {
+                        html += `<div class="contact-group">
+                            <h3 class="contact-group-title">
+                                <i class="fas fa-${typeIcons[type]}"></i>
+                                ${typeLabels[type]} (${grouped[type].length})
+                            </h3>
+                            <div class="contact-group-items">`;
+                        
+                        grouped[type].forEach(contact => {
+                            let valueHtml = contact.value;
+                            
+                            // Make phone numbers clickable
+                            if (contact.type === 'phone') {
+                                const phoneClean = contact.value.replace(/[\s\-\(\)]/g, '');
+                                valueHtml = `<a href="tel:${phoneClean}" class="contact-link">${contact.value}</a>`;
+                            }
+                            // Make emails clickable
+                            else if (contact.type === 'email') {
+                                valueHtml = `<a href="mailto:${contact.value}" class="contact-link">${contact.value}</a>`;
+                            }
+                            // Make social links clickable with full URLs
+                            else if (contact.type === 'social') {
+                                const socialValue = contact.value.trim();
+                                // Если это полный URL - используем как есть
+                                if (socialValue.startsWith('http')) {
+                                    valueHtml = `<a href="${socialValue}" target="_blank" class="contact-link">${socialValue}</a>`;
+                                } else {
+                                    // Иначе пробуем определить тип
+                                    let url = '';
+                                    if (socialValue.includes('instagram')) {
+                                        url = socialValue.includes('http') ? socialValue : `https://instagram.com/${socialValue}`;
+                                    } else if (socialValue.includes('facebook')) {
+                                        url = socialValue.includes('http') ? socialValue : `https://facebook.com/${socialValue}`;
+                                    } else if (socialValue.includes('linkedin')) {
+                                        url = socialValue.includes('http') ? socialValue : `https://linkedin.com/${socialValue}`;
+                                    } else if (socialValue.includes('twitter') || socialValue.includes('x.com')) {
+                                        url = socialValue.includes('http') ? socialValue : `https://twitter.com/${socialValue}`;
+                                    } else if (socialValue.includes('youtube')) {
+                                        url = socialValue.includes('http') ? socialValue : `https://youtube.com/${socialValue}`;
+                                    } else if (socialValue.includes('tiktok')) {
+                                        url = socialValue.includes('http') ? socialValue : `https://tiktok.com/${socialValue}`;
+                                    }
+                                    if (url) {
+                                        valueHtml = `<a href="${url}" target="_blank" class="contact-link">${contact.value}</a>`;
+                                    }
+                                }
+                            }
+                            // Make messengers clickable
+                            else if (contact.type === 'messenger') {
+                                const messengerValue = contact.value.trim();
+                                // Если это полный URL - используем как есть
+                                if (messengerValue.startsWith('http') || messengerValue.startsWith('//')) {
+                                    valueHtml = `<a href="${messengerValue}" target="_blank" class="contact-link">${messengerValue}</a>`;
+                                } else {
+                                    // Иначе пробуем определить тип
+                                    let url = '';
+                                    if (messengerValue.includes('telegram')) {
+                                        const handle = messengerValue.replace('telegram:', '').replace('t.me', '').replace('telegram.me', '').trim();
+                                        url = handle.startsWith('http') ? handle : `https://t.me/${handle}`;
+                                    } else if (messengerValue.includes('whatsapp') || messengerValue.includes('wa.me')) {
+                                        const num = messengerValue.replace(/[^\d+]/g, '');
+                                        url = num ? `https://wa.me/${num}` : messengerValue;
+                                    } else if (messengerValue.includes('viber')) {
+                                        const num = messengerValue.replace(/[^\d+]/g, '');
+                                        url = num ? `viber:${num}` : messengerValue;
+                                    }
+                                    if (url) {
+                                        valueHtml = `<a href="${url}" target="_blank" class="contact-link">${contact.value}</a>`;
+                                    }
+                                }
+                            }
+                            
+                            html += `<div class="contact-item">
+                                <div class="contact-value">${valueHtml}</div>
+                            </div>`;
+                        });
+                        
+                        html += `</div></div>`;
+                    }
+                });
+                
+                results.innerHTML = html;
             }
             
             results.style.display = 'block';
