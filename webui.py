@@ -7,7 +7,7 @@ import re
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 
 # Используем Playwright для рендеринга JavaScript
 from playwright.sync_api import sync_playwright
@@ -1201,41 +1201,65 @@ def _filter_contact_links(links):
 @app.route('/parse_contacts', methods=['POST'])
 def parse_contacts_endpoint():
     data = request.get_json()
-    urls = data.get('urls', [])
-    if not urls:
+    raw_urls = data.get('urls', [])
+    if not raw_urls:
         return jsonify({'error': 'No URLs provided'}), 400
+
+    url_entity_pairs = []
+    if isinstance(raw_urls, dict):
+        for raw_url, entity_id in raw_urls.items():
+            if isinstance(raw_url, str) and raw_url.startswith(('http://', 'https://')):
+                url_entity_pairs.append((raw_url, entity_id))
+    elif isinstance(raw_urls, list):
+        for raw_url in raw_urls:
+            if isinstance(raw_url, str) and raw_url.startswith(('http://', 'https://')):
+                url_entity_pairs.append((raw_url, None))
+
+    if not url_entity_pairs:
+        return jsonify({'error': 'No valid URLs provided'}), 400
+
+    url_to_entity_id = {}
+    urls = []
+    for url, entity_id in url_entity_pairs:
+        if url not in url_to_entity_id:
+            url_to_entity_id[url] = entity_id
+            urls.append(url)
 
     found_contacts = set()
     
     # Only process the initial URLs and a few common contact page URLs
     urls_to_process = list(urls)
     
-    # Add common contact page URLs for the domain
-    base_domain = urlparse(urls[0]).netloc if urls else ''
-    if base_domain:
-        # Extract main domain without subdomains
-        base_parts = base_domain.split('.')
-        if len(base_parts) > 2:
-            main_domain = '.'.join(base_parts[1:])
-        else:
-            main_domain = base_domain
-        
-        # Add common contact page variations
-    contact_variations = [
-        f"https://{main_domain}/contacts",
-        f"https://{main_domain}/contact",
-        f"https://{main_domain}/contact-us",
-        f"https://{main_domain}/contactus",
-        f"https://{main_domain}/about",
-        f"https://{main_domain}/about-us",
-        f"https://{main_domain}/company",
-        f"https://{main_domain}/our-company",
-        f"https://{main_domain}/join-us",
+    contact_paths = [
+        '/contacts',
+        '/contact',
+        '/contact-us',
+        '/contactus',
+        '/about',
+        '/about-us',
+        '/company',
+        '/our-company',
+        '/join-us',
     ]
 
-    for contact_url in contact_variations:
-        if contact_url not in urls_to_process:
-            urls_to_process.append(contact_url)
+    for url in urls:
+        parsed_url = urlparse(url)
+        if not parsed_url.netloc:
+            continue
+
+        for contact_path in contact_paths:
+            contact_url = urlunparse((
+                parsed_url.scheme or 'https',
+                parsed_url.netloc,
+                contact_path,
+                '',
+                '',
+                ''
+            ))
+            if contact_url not in url_to_entity_id:
+                url_to_entity_id[contact_url] = url_to_entity_id.get(url)
+            if contact_url not in urls_to_process:
+                urls_to_process.append(contact_url)
     
     print(f"URLs to process: {urls_to_process}")
 
@@ -1355,7 +1379,12 @@ def parse_contacts_endpoint():
 
             browser.close()
 
-    contacts_list = [{'type': c[0], 'value': c[1], 'source': c[2]} for c in found_contacts]
+    contacts_list = [{
+        'type': c[0],
+        'value': c[1],
+        'source': c[2],
+        'entity_id': url_to_entity_id.get(c[2])
+    } for c in found_contacts]
     
     # Дедупликация контактов с нормализацией
     unique_contacts = {}
@@ -1381,7 +1410,7 @@ def parse_contacts_endpoint():
             normalized_value = f"{contact['type'].lower()}:{normalized_value}"
         
         # Используем только нормализованное значение как ключ (без источника)
-        key = normalized_value
+        key = f"{contact.get('entity_id')}|{normalized_value}"
         if key not in unique_contacts:
             # Очистка от URL encoding и лишних пробелов
             clean_value = contact['value'].replace('%20', ' ').strip()
@@ -1395,7 +1424,8 @@ def parse_contacts_endpoint():
             unique_contacts[key] = {
                 'type': contact['type'],
                 'value': clean_value,
-                'source': contact['source']
+                'source': contact['source'],
+                'entity_id': contact.get('entity_id')
             }
     
     final_contacts = list(unique_contacts.values())
